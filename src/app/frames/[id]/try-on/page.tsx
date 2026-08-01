@@ -1,0 +1,86 @@
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { frames, getFrame, getStudio } from "@/lib/data";
+import { scoreFrameFit } from "@/lib/fit";
+import { usePreferences } from "@/lib/preferences";
+
+export default function TryOnPage() {
+  const params = useParams<{ id: string }>();
+  const router = useRouter();
+  const frame = getFrame(params.id);
+  const studio = frame ? getStudio(frame.studioSlug) : undefined;
+  const { fitProfile } = usePreferences();
+
+  if (!frame || !studio) {
+    return (
+      <div className="section">
+        <div className="container">
+          <h2>Frame not found</h2>
+        </div>
+      </div>
+    );
+  }
+
+  const index = frames.findIndex((item) => item.id === frame.id);
+  const prev = frames[(index - 1 + frames.length) % frames.length];
+  const next = frames[(index + 1) % frames.length];
+  const fitScore = fitProfile ? scoreFrameFit(frame, fitProfile) : null;
+
+  return (
+    <section className="tryon">
+      <div className="tryon-media">
+        <Image
+          src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=2000&q=80"
+          alt="Live try-on preview"
+          fill
+          priority
+          sizes="100vw"
+          style={{ objectFit: "cover" }}
+        />
+        <div className="hero-scrim" />
+      </div>
+      <div className="container tryon-bar">
+        <div>
+          <div className="brand" style={{ letterSpacing: "0.18em" }}>
+            Lunette
+          </div>
+          <p>
+            Live try-on · {frame.name} by {studio.name}
+            {fitScore !== null ? ` · ${fitScore}% fit` : " · Scan to see fit"}
+          </p>
+        </div>
+        <div className="cta-row">
+          <button
+            type="button"
+            className="btn btn-ghost"
+            style={{ color: "#f3efe6", borderColor: "#f3efe6" }}
+            onClick={() => router.push(`/frames/${prev.id}/try-on`)}
+          >
+            Previous
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            style={{ color: "#f3efe6", borderColor: "#f3efe6" }}
+            onClick={() => router.push(`/frames/${next.id}/try-on`)}
+          >
+            Next
+          </button>
+          <Link href={`/frames/${frame.id}`} className="btn btn-gold">
+            Save look
+          </Link>
+          <Link
+            href={`/studios/${studio.slug}/contact?frame=${frame.id}`}
+            className="btn-text"
+            style={{ color: "#c4a46a" }}
+          >
+            Contact seller
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}

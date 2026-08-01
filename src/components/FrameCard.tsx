@@ -1,0 +1,42 @@
+import Image from "next/image";
+import Link from "next/link";
+import { getStudioForFrame } from "@/lib/data";
+import type { Frame } from "@/lib/types";
+
+interface FrameCardProps {
+  frame: Frame;
+  fitScore?: number | null;
+  showLocal?: boolean;
+  countryCode?: string;
+}
+
+export function FrameCard({
+  frame,
+  fitScore,
+  showLocal,
+  countryCode,
+}: FrameCardProps) {
+  const studio = getStudioForFrame(frame);
+  const isLocal = Boolean(
+    showLocal && studio && countryCode && studio.countryCode === countryCode,
+  );
+
+  return (
+    <Link href={`/frames/${frame.id}`} className="frame-item">
+      <div className="media">
+        <Image
+          src={frame.image}
+          alt={`${frame.name} by ${studio?.name ?? "studio"}`}
+          width={800}
+          height={1000}
+        />
+      </div>
+      <div className="meta-title">{frame.name}</div>
+      <div className="meta-sub">{studio?.name}</div>
+      {typeof fitScore === "number" ? (
+        <div className="fit-badge">{fitScore}% match</div>
+      ) : null}
+      {isLocal ? <div className="local-tag">Local</div> : null}
+    </Link>
+  );
+}
