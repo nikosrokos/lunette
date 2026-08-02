@@ -1,7 +1,10 @@
 import type { FaceAnchor, FacePoint3, Frame } from "./types";
 import { dist2, mid, type Vec3 } from "./vec3";
 import { MEAN_OUTER_EYE_MM, MEAN_PD_MM } from "./glasses-geometry";
-import { FACE_LANDMARKER_MODEL, MEDIAPIPE_WASM_PATH } from "./mediapipe";
+import {
+  FACE_LANDMARKER_MODEL,
+  MEDIAPIPE_WASM_CANDIDATES,
+} from "./mediapipe";
 
 /** MediaPipe landmark indices for glasses placement. */
 const LEFT_OUTER = 33;
@@ -35,21 +38,28 @@ async function getFaceLandmarker(): Promise<FaceLandmarkerType | null> {
     landmarkerPromise = (async () => {
       try {
         const vision = await import("@mediapipe/tasks-vision");
-        const fileset =
-          await vision.FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_PATH);
-        const landmarker = await vision.FaceLandmarker.createFromOptions(
-          fileset,
-          {
-            baseOptions: {
-              modelAssetPath: FACE_LANDMARKER_MODEL,
-              delegate: "CPU",
-            },
-            runningMode: "IMAGE",
-            numFaces: 1,
-            outputFacialTransformationMatrixes: true,
-          },
-        );
-        return landmarker as FaceLandmarkerType;
+        for (const wasmPath of MEDIAPIPE_WASM_CANDIDATES) {
+          try {
+            const fileset =
+              await vision.FilesetResolver.forVisionTasks(wasmPath);
+            const landmarker = await vision.FaceLandmarker.createFromOptions(
+              fileset,
+              {
+                baseOptions: {
+                  modelAssetPath: FACE_LANDMARKER_MODEL,
+                  delegate: "CPU",
+                },
+                runningMode: "IMAGE",
+                numFaces: 1,
+                outputFacialTransformationMatrixes: true,
+              },
+            );
+            return landmarker as FaceLandmarkerType;
+          } catch {
+            /* try next wasm path */
+          }
+        }
+        throw new Error("All MediaPipe WASM paths failed");
       } catch (error) {
         console.error("Face landmarker failed to load", error);
         landmarkerPromise = null;

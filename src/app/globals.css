@@ -400,49 +400,38 @@ p {
 }
 
 .virtual-mirror {
-  width: min(100%, 640px);
+  width: min(100%, 720px);
 }
 
 .virtual-mirror-stage {
   position: relative;
-  aspect-ratio: 3 / 4;
+  aspect-ratio: 4 / 3;
   overflow: hidden;
-  background: #1c1a17;
+  background: #12110f;
+  border-radius: 2px;
 }
 
-.virtual-mirror-video.is-visible,
-.virtual-mirror-photo {
+/* Keep full-size under the canvas so browsers keep decoding frames. */
+.virtual-mirror-video {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  /* Stage aspect matches the source, so fill keeps landmarks aligned. */
-  object-fit: fill;
-  display: block;
-}
-
-.virtual-mirror-video.is-visible {
-  transform: scaleX(-1);
-}
-
-.virtual-mirror-glasses {
-  position: absolute;
-  z-index: 3;
+  object-fit: contain;
+  opacity: 0;
   pointer-events: none;
-  line-height: 0;
-  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.35));
-  transition: opacity 120ms ease;
+  z-index: 0;
 }
 
-.virtual-mirror-glasses.is-on {
-  opacity: 1;
-}
-
-.virtual-mirror-svg {
+.virtual-mirror-canvas {
+  position: absolute;
+  inset: 0;
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: contain;
   display: block;
-  overflow: visible;
+  background: #12110f;
+  z-index: 1;
 }
 
 .virtual-mirror-overlay-msg,
@@ -457,6 +446,7 @@ p {
   font-size: 0.92rem;
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.55);
   z-index: 4;
+  pointer-events: none;
 }
 
 .virtual-mirror-bar {
@@ -467,6 +457,12 @@ p {
 
 .virtual-mirror-upload {
   cursor: pointer;
+}
+
+@media (max-width: 720px) {
+  .virtual-mirror-stage {
+    aspect-ratio: 3 / 4;
+  }
 }
 
 .frame-item-actions {

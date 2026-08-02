@@ -50,8 +50,9 @@ export default function TryOnPage() {
               {assessment ? ` · ${assessment.score}% match` : ""}
             </p>
             <p className="fit-reason" style={{ marginTop: "0.35rem" }}>
-              Live camera mirror — allow the camera, centre your face, and the
-              glasses follow you. Or upload a photo. Stays in your browser.
+              Live try-on with the real product frame on your face. Allow the
+              camera, centre your face, or upload a photo. Image stays in your
+              browser.
             </p>
           </div>
           <Link href={`/frames/${frame.id}`} className="btn-text">
@@ -59,7 +60,7 @@ export default function TryOnPage() {
           </Link>
         </div>
 
-        <VirtualMirror frame={frame} />
+        <VirtualMirror key={frame.id} frame={frame} />
 
         <div className="cta-row" style={{ marginTop: "1.5rem" }}>
           <button

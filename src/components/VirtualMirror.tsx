@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  getFaceTrackerError,
   getVideoFaceLandmarker,
+  loadGlassesSprite,
   poseFromLandmarks,
   preloadVideoFaceLandmarker,
   type LiveGlassesPose,
 } from "@/lib/live-face";
-import { frameColors, layoutFromFrame } from "@/lib/glasses-geometry";
 import {
   detectFaceAnchor,
   metricFrameWidthFraction,
@@ -20,66 +21,64 @@ interface VirtualMirrorProps {
   frame: Frame;
 }
 
-const EMPTY_POSE: LiveGlassesPose = {
-  cx: 0.5,
-  cy: 0.42,
-  width: 0.42,
-  rotation: 0,
-  ok: false,
-};
-
 /**
- * Live virtual mirror: webcam (or photo) with glasses tracked on the eyes.
+ * Lentiamo-style virtual mirror:
+ * live webcam + real product frame (cut-out) tracked onto the eyes.
  */
 export function VirtualMirror({ frame }: VirtualMirrorProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const glassesRef = useRef<HTMLImageElement | null>(null);
+  const photoRef = useRef<HTMLImageElement | null>(null);
+  const poseRef = useRef<LiveGlassesPose | null>(null);
   const rafRef = useRef(0);
   const lastTsRef = useRef(0);
-  const faceFoundRef = useRef(false);
-  const poseRafRef = useRef(0);
+  const frameRef = useRef(frame);
+  frameRef.current = frame;
 
   const [mode, setMode] = useState<MirrorMode>("live");
   const [status, setStatus] = useState("Starting camera…");
   const [ready, setReady] = useState(false);
-  const [trackerReady, setTrackerReady] = useState(false);
-  const [faceFound, setFaceFound] = useState(false);
-  const [pose, setPose] = useState<LiveGlassesPose>(EMPTY_POSE);
+  const [tracking, setTracking] = useState(false);
+  const [glassesReady, setGlassesReady] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [aspect, setAspect] = useState(4 / 3);
 
-  function updateFaceFound(next: boolean) {
-    if (faceFoundRef.current === next) return;
-    faceFoundRef.current = next;
-    setFaceFound(next);
-  }
-
-  // Throttle React pose updates so the overlay stays smooth.
-  function publishPose(next: LiveGlassesPose) {
-    cancelAnimationFrame(poseRafRef.current);
-    poseRafRef.current = requestAnimationFrame(() => setPose(next));
-  }
-
+  // Load the real product sprite (transparent cut-out).
   useEffect(() => {
     let cancelled = false;
+    setGlassesReady(false);
+    glassesRef.current = null;
     preloadVideoFaceLandmarker();
-    void getVideoFaceLandmarker().then((lm) => {
-      if (!cancelled) setTrackerReady(Boolean(lm));
-    });
+
+    void loadGlassesSprite(frame.image)
+      .then((img) => {
+        if (cancelled) return;
+        glassesRef.current = img;
+        setGlassesReady(true);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setGlassesReady(false);
+          setStatus("Could not load this frame’s product image.");
+        }
+      });
+
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [frame.image]);
 
+  // Open webcam for live mode.
   useEffect(() => {
     if (mode !== "live") return;
     let cancelled = false;
 
     async function start() {
-      setStatus("Allow camera access to try on…");
+      setStatus("Allow camera access for the live try-on…");
       setReady(false);
-      publishPose(EMPTY_POSE);
-      updateFaceFound(false);
+      setTracking(false);
+      poseRef.current = null;
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
@@ -98,13 +97,10 @@ export function VirtualMirror({ frame }: VirtualMirrorProps) {
         if (!video) return;
         video.srcObject = stream;
         await video.play();
-        if (video.videoWidth > 0 && video.videoHeight > 0) {
-          setAspect(video.videoWidth / video.videoHeight);
-        }
         setReady(true);
-        setStatus("Camera on — loading face tracker…");
+        setStatus("Looking for your face…");
       } catch {
-        setStatus("Camera blocked. Allow access, or upload a photo instead.");
+        setStatus("Camera blocked. Allow access, or upload a photo.");
         setReady(false);
       }
     }
@@ -117,85 +113,117 @@ export function VirtualMirror({ frame }: VirtualMirrorProps) {
     };
   }, [mode]);
 
+  // Main render + tracking loop (canvas compositor — not React pose state).
   useEffect(() => {
-    if (mode === "live" && ready && trackerReady) {
-      setStatus("Live mirror — centre your face");
-    }
-  }, [mode, ready, trackerReady]);
-
-  useEffect(() => {
-    if (mode !== "live" || !ready) return;
+    if (!ready) return;
     let active = true;
+    let sawFace = false;
 
-    async function loop() {
-      const landmarker = await getVideoFaceLandmarker();
-      if (!landmarker || !active) {
-        if (active) {
-          setTrackerReady(false);
-          setStatus(
-            "Face tracker failed to load. Try upload photo, or refresh.",
-          );
-        }
+    async function run() {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d", { alpha: false });
+      if (!ctx) return;
+
+      const landmarker =
+        mode === "live" ? await getVideoFaceLandmarker() : null;
+      if (mode === "live" && !landmarker) {
+        setStatus(
+          `Face tracker failed (${getFaceTrackerError() ?? "unknown"}). Try upload photo.`,
+        );
         return;
       }
-      setTrackerReady(true);
-      setStatus("Live mirror — centre your face");
+      if (mode === "live") {
+        setStatus("Live try-on — centre your face");
+      }
 
-      const tick = () => {
+      const paint = () => {
         if (!active) return;
         const video = videoRef.current;
-        if (!video || video.readyState < 2) {
-          rafRef.current = requestAnimationFrame(tick);
-          return;
-        }
+        const glasses = glassesRef.current;
+        const photo = photoRef.current;
+        const product = frameRef.current;
 
-        try {
-          const now = performance.now();
-          const ts = now <= lastTsRef.current ? lastTsRef.current + 1 : now;
-          lastTsRef.current = ts;
-          const result = landmarker.detectForVideo(video, ts);
-          const face = result.faceLandmarks?.[0];
-          if (face?.length) {
-            // Video is CSS-mirrored; flip X so overlay matches the mirror.
-            const mirrored = face.map((p) => ({ ...p, x: 1 - p.x }));
-            const next = poseFromLandmarks(mirrored, frame);
-            updateFaceFound(next.ok);
-            if (next.ok) publishPose(next);
-          } else {
-            updateFaceFound(false);
+        if (mode === "live" && video && video.readyState >= 2) {
+          const w = video.videoWidth;
+          const h = video.videoHeight;
+          if (canvas.width !== w || canvas.height !== h) {
+            canvas.width = w;
+            canvas.height = h;
           }
-        } catch (error) {
-          console.warn("detectForVideo", error);
+
+          // Mirror like a real fitting-room mirror / Lentiamo.
+          ctx.save();
+          ctx.translate(w, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(video, 0, 0, w, h);
+          ctx.restore();
+
+          if (landmarker) {
+            try {
+              const now = performance.now();
+              const ts =
+                now <= lastTsRef.current ? lastTsRef.current + 1 : now;
+              lastTsRef.current = ts;
+              const result = landmarker.detectForVideo(video, ts);
+              const face = result.faceLandmarks?.[0];
+              if (face?.length) {
+                const mirrored = face.map((p) => ({ ...p, x: 1 - p.x }));
+                const pose = poseFromLandmarks(mirrored, product);
+                poseRef.current = pose.ok ? pose : null;
+                if (pose.ok !== sawFace) {
+                  sawFace = pose.ok;
+                  setTracking(pose.ok);
+                }
+              } else if (sawFace) {
+                sawFace = false;
+                poseRef.current = null;
+                setTracking(false);
+              }
+            } catch (error) {
+              console.warn("detectForVideo", error);
+            }
+          }
+        } else if (mode === "photo" && photo && photo.naturalWidth) {
+          const w = photo.naturalWidth;
+          const h = photo.naturalHeight;
+          if (canvas.width !== w || canvas.height !== h) {
+            canvas.width = w;
+            canvas.height = h;
+          }
+          ctx.drawImage(photo, 0, 0, w, h);
         }
 
-        rafRef.current = requestAnimationFrame(tick);
+        const pose = poseRef.current;
+        if (pose?.ok && glasses && glasses.naturalWidth > 0) {
+          drawRealGlasses(ctx, canvas.width, canvas.height, pose, glasses);
+        }
+
+        rafRef.current = requestAnimationFrame(paint);
       };
 
-      rafRef.current = requestAnimationFrame(tick);
+      rafRef.current = requestAnimationFrame(paint);
     }
 
-    void loop();
+    void run();
     return () => {
       active = false;
       cancelAnimationFrame(rafRef.current);
-      cancelAnimationFrame(poseRafRef.current);
     };
-  }, [mode, ready, frame]);
+  }, [ready, mode, glassesReady]);
 
   async function onUpload(file: File | null) {
     if (!file) return;
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = async () => {
+      photoRef.current = img;
       setPhotoUrl(url);
-      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-        setAspect(img.naturalWidth / img.naturalHeight);
-      }
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
       setMode("photo");
       setReady(true);
-      setStatus("Reading your face in the photo…");
+      setStatus("Placing the frame on your photo…");
       try {
         const c = document.createElement("canvas");
         c.width = img.naturalWidth;
@@ -203,73 +231,51 @@ export function VirtualMirror({ frame }: VirtualMirrorProps) {
         const cctx = c.getContext("2d");
         if (!cctx) throw new Error("canvas");
         cctx.drawImage(img, 0, 0);
-        const anchor = await detectFaceAnchor(c.toDataURL("image/jpeg", 0.9));
-        const next: LiveGlassesPose = {
+        const anchor = await detectFaceAnchor(c.toDataURL("image/jpeg", 0.92));
+        poseRef.current = {
           cx: anchor.cx,
           cy: anchor.cy,
           width: metricFrameWidthFraction(anchor, frame),
           rotation: anchor.rotation,
           ok: true,
         };
-        publishPose(next);
-        updateFaceFound(true);
-        setStatus("Photo try-on ready");
+        setTracking(true);
+        setStatus("Photo try-on — switch frames or go back to live camera");
       } catch {
-        publishPose(EMPTY_POSE);
-        updateFaceFound(false);
-        setStatus("Could not find a face in that photo. Try another.");
+        poseRef.current = null;
+        setTracking(false);
+        setStatus("No face found in that photo. Try another.");
       }
     };
     img.src = url;
   }
 
-  const glassesStyle: CSSProperties = {
-    left: `${pose.cx * 100}%`,
-    top: `${pose.cy * 100}%`,
-    width: `${Math.max(pose.width * 100, 28)}%`,
-    transform: `translate(-50%, -50%) rotate(${pose.rotation}deg)`,
-    opacity: pose.ok ? 1 : 0,
-  };
-
   return (
     <div className="virtual-mirror">
-      <div
-        className="virtual-mirror-stage"
-        style={{ aspectRatio: `${aspect}` }}
-      >
-        {mode === "live" ? (
-          <video
-            ref={videoRef}
-            className="virtual-mirror-video is-visible"
-            playsInline
-            muted
-            autoPlay
-          />
-        ) : photoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={photoUrl} alt="Your photo" className="virtual-mirror-photo" />
-        ) : null}
-
-        <div
-          className={`virtual-mirror-glasses${pose.ok ? " is-on" : ""}`}
-          style={glassesStyle}
-          aria-hidden="true"
-        >
-          <ParametricGlasses frame={frame} />
-        </div>
-
+      <div className="virtual-mirror-stage">
+        <video
+          ref={videoRef}
+          className="virtual-mirror-video"
+          playsInline
+          muted
+          autoPlay
+        />
+        <canvas ref={canvasRef} className="virtual-mirror-canvas" />
         {!ready ? (
           <div className="virtual-mirror-overlay-msg">{status}</div>
         ) : null}
-        {ready && !faceFound ? (
-          <div className="virtual-mirror-hint">Centre your face in the frame</div>
+        {ready && !tracking ? (
+          <div className="virtual-mirror-hint">
+            Centre your face — the real frame appears on your eyes
+          </div>
         ) : null}
       </div>
 
       <div className="virtual-mirror-bar">
         <p className="meta-sub">
           {status}
-          {faceFound ? " · Tracking" : ""}
+          {tracking ? " · Frame on face" : ""}
+          {glassesReady ? "" : " · Loading frame…"}
         </p>
         <div className="cta-row">
           <button
@@ -278,8 +284,9 @@ export function VirtualMirror({ frame }: VirtualMirrorProps) {
             onClick={() => {
               if (photoUrl) URL.revokeObjectURL(photoUrl);
               setPhotoUrl(null);
-              publishPose(EMPTY_POSE);
-              updateFaceFound(false);
+              photoRef.current = null;
+              poseRef.current = null;
+              setTracking(false);
               setMode("live");
               setStatus("Starting camera…");
             }}
@@ -301,51 +308,28 @@ export function VirtualMirror({ frame }: VirtualMirrorProps) {
   );
 }
 
-/** SVG glasses from product millimetre sizes — always drawable, no image deps. */
-function ParametricGlasses({ frame }: { frame: Frame }) {
-  const layout = layoutFromFrame(frame);
-  const colors = frameColors(frame.material);
-  const { lensWidth, lensHeight, bridge, frameWidth } = layout;
-  const viewW = frameWidth;
-  const viewH = Math.max(lensHeight * 1.4, 64);
-  const cy = viewH / 2;
-  const leftCx = viewW / 2 - bridge / 2 - lensWidth / 2;
-  const rightCx = viewW / 2 + bridge / 2 + lensWidth / 2;
-  const rx = lensWidth / 2;
-  const ry = lensHeight / 2;
+/** Draw the real product cut-out onto the face pose (Lentiamo-style). */
+function drawRealGlasses(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  pose: LiveGlassesPose,
+  glasses: HTMLImageElement,
+) {
+  const widthPx = pose.width * w;
+  const aspect = glasses.naturalHeight / Math.max(1, glasses.naturalWidth);
+  // Packshots are often square; keep lenses from becoming huge vertically.
+  const heightPx = widthPx * Math.min(Math.max(aspect, 0.3), 0.7);
+  const x = pose.cx * w;
+  const y = pose.cy * h;
+  const rad = (pose.rotation * Math.PI) / 180;
 
-  return (
-    <svg
-      className="virtual-mirror-svg"
-      viewBox={`0 0 ${viewW} ${viewH}`}
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <ellipse
-        cx={leftCx}
-        cy={cy}
-        rx={rx}
-        ry={ry}
-        fill={colors.lens}
-        stroke={colors.rim}
-        strokeWidth={layout.rim}
-      />
-      <ellipse
-        cx={rightCx}
-        cy={cy}
-        rx={rx}
-        ry={ry}
-        fill={colors.lens}
-        stroke={colors.rim}
-        strokeWidth={layout.rim}
-      />
-      <path
-        d={`M ${leftCx + rx} ${cy - ry * 0.08} H ${rightCx - rx}`}
-        stroke={colors.rim}
-        strokeWidth={layout.rim * 0.95}
-        fill="none"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rad);
+  ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
+  ctx.shadowBlur = 14;
+  ctx.shadowOffsetY = 5;
+  ctx.drawImage(glasses, -widthPx / 2, -heightPx / 2, widthPx, heightPx);
+  ctx.restore();
 }

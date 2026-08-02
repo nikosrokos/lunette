@@ -1,6 +1,9 @@
 import type { Frame } from "./types";
 import { MEAN_OUTER_EYE_MM, MEAN_PD_MM } from "./glasses-geometry";
-import { FACE_LANDMARKER_MODEL, MEDIAPIPE_WASM_PATH } from "./mediapipe";
+import {
+  FACE_LANDMARKER_MODEL,
+  MEDIAPIPE_WASM_CANDIDATES,
+} from "./mediapipe";
 
 const LEFT_OUTER = 33;
 const LEFT_INNER = 133;
@@ -20,7 +23,7 @@ export interface LiveGlassesPose {
   ok: boolean;
 }
 
-type VideoLandmarker = {
+export type VideoLandmarker = {
   detectForVideo: (
     video: HTMLVideoElement,
     timestamp: number,
@@ -29,15 +32,29 @@ type VideoLandmarker = {
 };
 
 let videoLandmarkerPromise: Promise<VideoLandmarker | null> | null = null;
+let lastLoadError: string | null = null;
+
+export function getFaceTrackerError() {
+  return lastLoadError;
+}
 
 export async function getVideoFaceLandmarker(): Promise<VideoLandmarker | null> {
   if (typeof window === "undefined") return null;
   if (!videoLandmarkerPromise) {
-    videoLandmarkerPromise = (async () => {
+    videoLandmarkerPromise = createVideoLandmarker();
+  }
+  return videoLandmarkerPromise;
+}
+
+async function createVideoLandmarker(): Promise<VideoLandmarker | null> {
+  const errors: string[] = [];
+  try {
+    const vision = await import("@mediapipe/tasks-vision");
+
+    for (const wasmPath of MEDIAPIPE_WASM_CANDIDATES) {
       try {
-        const vision = await import("@mediapipe/tasks-vision");
         const fileset =
-          await vision.FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_PATH);
+          await vision.FilesetResolver.forVisionTasks(wasmPath);
         const landmarker = await vision.FaceLandmarker.createFromOptions(
           fileset,
           {
@@ -49,15 +66,24 @@ export async function getVideoFaceLandmarker(): Promise<VideoLandmarker | null> 
             numFaces: 1,
           },
         );
+        lastLoadError = null;
         return landmarker as VideoLandmarker;
       } catch (error) {
-        console.error("Video face landmarker failed", error);
-        videoLandmarkerPromise = null;
-        return null;
+        const message =
+          error instanceof Error ? error.message : String(error);
+        errors.push(`${wasmPath}: ${message}`);
       }
-    })();
+    }
+  } catch (error) {
+    errors.push(
+      error instanceof Error ? error.message : String(error),
+    );
   }
-  return videoLandmarkerPromise;
+
+  lastLoadError = errors.join(" | ") || "Unknown landmarker error";
+  console.error("Video face landmarker failed", lastLoadError);
+  videoLandmarkerPromise = null;
+  return null;
 }
 
 export function preloadVideoFaceLandmarker() {
@@ -112,15 +138,17 @@ export function poseFromLandmarks(
   }
 
   const unitsPerMm = pd > 1e-4 ? pd / MEAN_PD_MM : outer / MEAN_OUTER_EYE_MM;
+  // Real retail VTO: frame width in mm mapped through inter-eye scale.
   const width = Math.min(
-    Math.max(outer * 1.35, frame.frameWidth * unitsPerMm * 0.95),
-    outer * 1.75,
+    Math.max(outer * 1.4, frame.frameWidth * unitsPerMm),
+    outer * 1.85,
   );
 
   const cx = (leftIris.x + rightIris.x) / 2;
   const eyeY = (leftIris.y + rightIris.y) / 2;
   const bridgeY = bridge?.y ?? eyeY + outer * 0.08;
-  const cy = eyeY * 0.55 + bridgeY * 0.45 + outer * 0.02;
+  // Rest on the nose saddle — slightly below pupils.
+  const cy = eyeY * 0.4 + bridgeY * 0.6;
   const rotation =
     (Math.atan2(rightOuter.y - leftOuter.y, rightOuter.x - leftOuter.x) *
       180) /
@@ -131,4 +159,25 @@ export function poseFromLandmarks(
 
 export function frameCutoutUrl(imageUrl: string) {
   return `/api/frame-cutout?src=${encodeURIComponent(imageUrl)}`;
+}
+
+export function loadImageElement(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`Failed to load ${src}`));
+    img.src = src;
+  });
+}
+
+/** Prefer transparent product cutout; fall back to original packshot. */
+export async function loadGlassesSprite(
+  imageUrl: string,
+): Promise<HTMLImageElement> {
+  try {
+    return await loadImageElement(frameCutoutUrl(imageUrl));
+  } catch {
+    return loadImageElement(imageUrl);
+  }
 }
