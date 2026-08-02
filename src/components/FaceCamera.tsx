@@ -53,6 +53,9 @@ export function FaceCamera({ onCaptured, busy }: FaceCameraProps) {
         await video.play();
       }
       setState("live");
+      void import("@/lib/face-landmarks").then((mod) => {
+        mod.preloadFaceLandmarker();
+      });
     } catch (err) {
       setState("error");
       const name = err instanceof DOMException ? err.name : "";

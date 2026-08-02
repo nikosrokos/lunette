@@ -9,7 +9,7 @@ import { assessFrameFit, formatFitSummary } from "@/lib/fit";
 import { usePreferences } from "@/lib/preferences";
 
 export default function FitResultsPage() {
-  const { fitProfile, countryCode, faceCapture } = usePreferences();
+  const { fitProfile, countryCode, faceCapture, faceAnchor } = usePreferences();
 
   const ranked = useMemo(() => {
     if (!fitProfile) return [];
@@ -82,6 +82,7 @@ export default function FitResultsPage() {
             <TryOnPortrait
               faceCapture={faceCapture}
               frame={top.frame}
+              faceAnchor={faceAnchor}
               label={`Preview · ${top.frame.name} · ${top.score}% — ${top.reason}`}
             />
             <div className="cta-row" style={{ marginTop: "1rem" }}>

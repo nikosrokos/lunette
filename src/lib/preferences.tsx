@@ -7,11 +7,12 @@ import {
   type ReactNode,
 } from "react";
 import { DEFAULT_COUNTRY } from "./data";
-import type { FitProfile } from "./types";
+import type { FaceAnchor, FitProfile } from "./types";
 
 const COUNTRY_KEY = "lunette-country";
 const FIT_KEY = "lunette-fit";
 const FACE_KEY = "lunette-face-capture";
+const ANCHOR_KEY = "lunette-face-anchor";
 const CHANGE_EVENT = "lunette-preferences";
 
 interface PreferencesContextValue {
@@ -21,6 +22,8 @@ interface PreferencesContextValue {
   setFitProfile: (profile: FitProfile | null) => void;
   faceCapture: string | null;
   setFaceCapture: (dataUrl: string | null) => void;
+  faceAnchor: FaceAnchor | null;
+  setFaceAnchor: (anchor: FaceAnchor | null) => void;
   ready: boolean;
 }
 
@@ -63,6 +66,14 @@ function getFaceSnapshot(): string {
   }
 }
 
+function getAnchorSnapshot(): string {
+  try {
+    return sessionStorage.getItem(ANCHOR_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
 function parseFit(raw: string): FitProfile | null {
   if (!raw) return null;
   try {
@@ -71,6 +82,15 @@ function parseFit(raw: string): FitProfile | null {
       parsed.faceWidth = "medium";
     }
     return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function parseAnchor(raw: string): FaceAnchor | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as FaceAnchor;
   } catch {
     return null;
   }
@@ -97,6 +117,16 @@ function setFaceCapture(dataUrl: string | null) {
   emitChange();
 }
 
+function setFaceAnchor(anchor: FaceAnchor | null) {
+  try {
+    if (anchor) sessionStorage.setItem(ANCHOR_KEY, JSON.stringify(anchor));
+    else sessionStorage.removeItem(ANCHOR_KEY);
+  } catch {
+    /* ignore */
+  }
+  emitChange();
+}
+
 export function PreferencesProvider({ children }: { children: ReactNode }) {
   const countryCode = useSyncExternalStore(
     subscribe,
@@ -105,8 +135,10 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   );
   const fitRaw = useSyncExternalStore(subscribe, getFitSnapshot, () => "");
   const faceRaw = useSyncExternalStore(subscribe, getFaceSnapshot, () => "");
+  const anchorRaw = useSyncExternalStore(subscribe, getAnchorSnapshot, () => "");
   const fitProfile = parseFit(fitRaw);
   const faceCapture = faceRaw || null;
+  const faceAnchor = parseAnchor(anchorRaw);
   const ready = useSyncExternalStore(
     subscribe,
     () => true,
@@ -122,6 +154,8 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
         setFitProfile,
         faceCapture,
         setFaceCapture,
+        faceAnchor,
+        setFaceAnchor,
         ready,
       }}
     >

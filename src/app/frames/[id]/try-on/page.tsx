@@ -18,6 +18,7 @@ export default function TryOnPage() {
   const {
     fitProfile,
     faceCapture,
+    faceAnchor,
     ready: prefsReady,
   } = usePreferences();
 
@@ -103,7 +104,8 @@ export default function TryOnPage() {
           <TryOnPortrait
             faceCapture={faceCapture}
             frame={frame}
-            label="Depth preview from your scan — glasses placed on your face photo"
+            faceAnchor={faceAnchor}
+            label="Real product frame aligned to your eye landmarks"
           />
         ) : (
           <div className="notice">

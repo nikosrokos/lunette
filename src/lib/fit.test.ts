@@ -20,6 +20,7 @@ import {
   productLimitForPlan,
 } from "./plans";
 import { isValidSlug, slugifyName } from "./branding";
+import { fallbackFaceAnchor } from "./face-landmarks";
 import type { FitProfile } from "./types";
 
 describe("fit scoring", () => {
@@ -117,5 +118,15 @@ describe("slug helpers", () => {
     expect(slugifyName("Atelier Nova")).toBe("atelier-nova");
     expect(isValidSlug("atelier-nova")).toBe(true);
     expect(isValidSlug("Atelier Nova")).toBe(false);
+  });
+});
+
+describe("face anchor fallback", () => {
+  it("keeps glasses near the guide eye line", () => {
+    const anchor = fallbackFaceAnchor();
+    expect(anchor.cx).toBeCloseTo(0.5, 2);
+    expect(anchor.cy).toBeGreaterThan(0.35);
+    expect(anchor.cy).toBeLessThan(0.55);
+    expect(anchor.width).toBeGreaterThan(0.4);
   });
 });

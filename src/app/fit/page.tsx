@@ -3,28 +3,41 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { FaceCamera, type FaceCaptureResult } from "@/components/FaceCamera";
+import { detectFaceAnchor } from "@/lib/face-landmarks";
 import { analyzeFitFromImageData } from "@/lib/fit";
 import { usePreferences } from "@/lib/preferences";
 
 function FitScanContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { setFitProfile, setFaceCapture } = usePreferences();
+  const { setFitProfile, setFaceCapture, setFaceAnchor } = usePreferences();
   const [scanning, setScanning] = useState(false);
+  const [status, setStatus] = useState("");
   const next = searchParams.get("next");
 
-  function finishScan(result: FaceCaptureResult) {
+  async function finishScan(result: FaceCaptureResult) {
     setScanning(true);
+    setStatus("Saving your face photo…");
     setFaceCapture(result.dataUrl);
-    window.setTimeout(() => {
-      const profile = analyzeFitFromImageData(result.imageData);
+
+    try {
+      setStatus("Finding your eyes for a precise fit…");
+      const [profile, anchor] = await Promise.all([
+        Promise.resolve(analyzeFitFromImageData(result.imageData)),
+        detectFaceAnchor(result.dataUrl),
+      ]);
       setFitProfile(profile);
-      if (next && next.startsWith("/")) {
-        router.push(next);
-      } else {
-        router.push("/fit/results");
-      }
-    }, 1200);
+      setFaceAnchor(anchor);
+      setStatus("Building your try-on…");
+    } catch {
+      setStatus("Using guided placement…");
+    }
+
+    if (next && next.startsWith("/")) {
+      router.push(next);
+    } else {
+      router.push("/fit/results");
+    }
   }
 
   return (
@@ -33,7 +46,7 @@ function FitScanContent() {
         <h2>Face fit</h2>
         <p className="lede" style={{ margin: "0.75rem auto 0" }}>
           Enable your camera, centre your face in the guide, then capture. We
-          estimate shape, bridge, and width — then show frames on your photo.
+          detect your eyes so the real product frames sit correctly.
           {next ? " After scanning you can try frames on." : ""}
         </p>
 
@@ -42,8 +55,9 @@ function FitScanContent() {
         </div>
 
         <p className="meta-sub" style={{ marginTop: "1rem" }}>
-          Camera stays in your browser. Your face photo is kept on this device
-          for try-on previews.
+          {scanning
+            ? status || "Processing your scan…"
+            : "Camera stays in your browser. Face photo + eye landmarks stay on this device for try-on."}
         </p>
       </div>
     </div>

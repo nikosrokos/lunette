@@ -18,6 +18,14 @@ export interface FitProfile {
   scannedAt: string;
 }
 
+/** Normalized (0–1) glasses placement from face landmarks. */
+export interface FaceAnchor {
+  cx: number;
+  cy: number;
+  width: number;
+  rotation: number;
+}
+
 export type PlanId = "free" | "pro";
 
 export type AccessStatus = "active" | "suspended" | "pending";

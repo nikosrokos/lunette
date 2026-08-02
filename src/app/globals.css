@@ -418,18 +418,21 @@ p {
 
 .tryon-glasses-layer {
   position: absolute;
-  left: 50%;
-  top: 38%;
-  width: 62%;
-  transform: translate(-50%, -50%) rotateX(12deg) translateZ(24px);
-  filter: drop-shadow(0 10px 14px rgba(28, 26, 23, 0.35));
   pointer-events: none;
+  z-index: 2;
+  filter: drop-shadow(0 8px 12px rgba(28, 26, 23, 0.28));
 }
 
-.tryon-glasses {
+.tryon-product-frame {
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: contain;
   display: block;
+  opacity: 0.96;
+}
+
+.tryon-product-frame.is-loading {
+  opacity: 0.55;
 }
 
 .tryon-portrait-label {

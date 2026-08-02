@@ -16,7 +16,7 @@ export default function FrameDetailPage() {
   const frame = getFrame(params.id);
   const { resolveStudio, ready } = useSellerAdmin();
   const studio = frame ? resolveStudio(frame.studioSlug) : undefined;
-  const { fitProfile, faceCapture } = usePreferences();
+  const { fitProfile, faceCapture, faceAnchor } = usePreferences();
   const [contactOpen, setContactOpen] = useState(false);
 
   if (!ready) {
@@ -53,7 +53,8 @@ export default function FrameDetailPage() {
               <TryOnPortrait
                 faceCapture={faceCapture}
                 frame={frame}
-                label="On your face"
+                faceAnchor={faceAnchor}
+                label="On your face · real product frame"
               />
             </div>
           ) : (
