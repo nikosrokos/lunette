@@ -47,11 +47,11 @@ export default function HomePage() {
             Browse frames
           </Link>
           <Link
-            href="/seller/promote"
+            href="/seller/login"
             className="btn-text"
             style={{ color: "var(--gold)" }}
           >
-            For sellers
+            Seller login
           </Link>
         </div>
       </div>

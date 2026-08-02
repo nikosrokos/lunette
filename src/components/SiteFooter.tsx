@@ -11,7 +11,7 @@ export function SiteFooter() {
         <div className="cta-row">
           <Link href="/fit">Find my fit</Link>
           <Link href="/discover">Browse frames</Link>
-          <Link href="/seller/promote">Promote your studio</Link>
+          <Link href="/seller/login">Seller login</Link>
         </div>
       </div>
     </footer>

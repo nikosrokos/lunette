@@ -145,6 +145,25 @@ p {
   font-size: 0.85rem;
 }
 
+.seller-login-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.15rem;
+  height: 2.15rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--ink-soft);
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.seller-login-icon:hover,
+.seller-login-icon.active {
+  color: var(--gold-deep);
+  border-color: rgba(196, 164, 106, 0.55);
+  background: rgba(196, 164, 106, 0.12);
+}
+
 .country-select {
   background: transparent;
   border: 1px solid var(--line);
@@ -695,6 +714,51 @@ p {
 .admin-heading {
   margin: 2rem 0 0.85rem;
   font-size: 1.35rem;
+}
+
+.admin-panel-stack {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.admin-panel {
+  border: 1px solid var(--line);
+  background: rgba(243, 239, 230, 0.45);
+}
+
+.admin-panel-trigger {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.admin-panel-trigger strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  margin-bottom: 0.15rem;
+}
+
+.admin-panel-chevron {
+  font-size: 1.35rem;
+  color: var(--gold-deep);
+  line-height: 1;
+}
+
+.admin-panel-body {
+  padding: 0 1.1rem 1.25rem;
+  border-top: 1px solid var(--line);
+}
+
+.admin-panel.is-open {
+  border-color: rgba(196, 164, 106, 0.45);
 }
 
 .admin-table-wrap {
