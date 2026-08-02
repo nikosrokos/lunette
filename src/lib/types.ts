@@ -18,7 +18,17 @@ export interface FitProfile {
   scannedAt: string;
 }
 
-/** Normalized (0–1) glasses placement from face landmarks. */
+/** 3D point in MediaPipe image space (x/y 0–1, z relative depth). */
+export interface FacePoint3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
+/**
+ * Face pose for try-on.
+ * 2D fields keep older UI paths working; 3D fields drive mesh placement.
+ */
 export interface FaceAnchor {
   cx: number;
   cy: number;
@@ -29,6 +39,22 @@ export interface FaceAnchor {
   eyeSpan: number;
   /** Cheek-to-cheek span as fraction of image width */
   faceWidth: number;
+  /** Image width / height when the scan was taken */
+  aspect?: number;
+  /** Key 3D landmarks for parametric glasses alignment */
+  pose3d?: {
+    leftOuter: FacePoint3;
+    rightOuter: FacePoint3;
+    leftInner: FacePoint3;
+    rightInner: FacePoint3;
+    leftIris: FacePoint3;
+    rightIris: FacePoint3;
+    bridge: FacePoint3;
+    leftCheek: FacePoint3;
+    rightCheek: FacePoint3;
+    /** Optional 4×4 column-major facial transform from MediaPipe */
+    matrix?: number[];
+  };
 }
 
 export type PlanId = "free" | "pro";

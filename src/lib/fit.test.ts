@@ -122,7 +122,7 @@ describe("slug helpers", () => {
 });
 
 describe("face anchor fallback", () => {
-  it("keeps glasses near the guide eye line", () => {
+  it("keeps glasses near the guide eye line and includes 3D pose", () => {
     const anchor = fallbackFaceAnchor();
     expect(anchor.cx).toBeCloseTo(0.5, 2);
     expect(anchor.cy).toBeGreaterThan(0.35);
@@ -130,5 +130,7 @@ describe("face anchor fallback", () => {
     expect(anchor.width).toBeGreaterThan(0.4);
     expect(anchor.eyeSpan).toBeGreaterThan(0);
     expect(anchor.faceWidth).toBeGreaterThan(anchor.eyeSpan);
+    expect(anchor.pose3d?.leftIris).toBeTruthy();
+    expect(anchor.pose3d?.bridge).toBeTruthy();
   });
 });

@@ -39,7 +39,9 @@ export default function NewFramePage() {
         </p>
         <h2 style={{ marginTop: "0.5rem" }}>List a frame</h2>
         <p className="lede" style={{ marginTop: "0.75rem" }}>
-          Add measurements so buyers get a true fit.
+          Enter the optical sizes (lens, bridge, temple, frame width). LUNETTE
+          builds a 3D try-on model from those numbers — no product 3D scan
+          required for the MVP. A clean packshot still helps the product page.
         </p>
 
         {ready && usage ? (
@@ -107,7 +109,7 @@ export default function NewFramePage() {
               <input name="studio" required defaultValue={DEMO_STUDIO.name} />
             </label>
             <label>
-              Photo URL (plain background packshot works best for try-on)
+              Photo URL (packshot for the product page)
               <input
                 name="image"
                 type="url"
@@ -126,6 +128,26 @@ export default function NewFramePage() {
             <label>
               Temple length (mm)
               <input name="temple" type="number" required defaultValue={145} />
+            </label>
+            <label>
+              Frame width (mm) — drives 3D try-on scale
+              <input
+                name="frameWidth"
+                type="number"
+                required
+                defaultValue={138}
+              />
+            </label>
+            <label>
+              Shape (3D lens silhouette)
+              <select name="shape" defaultValue="wayfarer">
+                <option value="wayfarer">Wayfarer</option>
+                <option value="aviator">Aviator</option>
+                <option value="round">Round</option>
+                <option value="cat-eye">Cat-eye</option>
+                <option value="rectangle">Rectangle</option>
+                <option value="square">Square</option>
+              </select>
             </label>
             <label>
               Recommended face shapes

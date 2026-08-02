@@ -1,4 +1,6 @@
-import type { FaceAnchor, Frame } from "./types";
+import type { FaceAnchor, FacePoint3, Frame } from "./types";
+import { dist2, mid, type Vec3 } from "./vec3";
+import { MEAN_OUTER_EYE_MM, MEAN_PD_MM } from "./glasses-geometry";
 
 /** MediaPipe landmark indices for glasses placement. */
 const LEFT_OUTER = 33;
@@ -9,10 +11,17 @@ const LEFT_IRIS = 468;
 const RIGHT_IRIS = 473;
 const LEFT_CHEEK = 234;
 const RIGHT_CHEEK = 454;
+/** Soft tissue between the eyes / upper nose bridge. */
+const BRIDGE = 168;
+const FOREHEAD = 10;
+const CHIN = 152;
+
+type Landmark = { x: number; y: number; z: number };
 
 type FaceLandmarkerType = {
   detect: (image: HTMLImageElement | HTMLCanvasElement) => {
-    faceLandmarks: Array<Array<{ x: number; y: number; z: number }>>;
+    faceLandmarks: Array<Array<Landmark>>;
+    facialTransformationMatrixes?: Array<{ data?: Float32Array | number[] }>;
   };
   close?: () => void;
 };
@@ -26,7 +35,7 @@ async function getFaceLandmarker(): Promise<FaceLandmarkerType | null> {
       try {
         const vision = await import("@mediapipe/tasks-vision");
         const fileset = await vision.FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm",
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm",
         );
         const landmarker = await vision.FaceLandmarker.createFromOptions(
           fileset,
@@ -38,6 +47,7 @@ async function getFaceLandmarker(): Promise<FaceLandmarkerType | null> {
             },
             runningMode: "IMAGE",
             numFaces: 1,
+            outputFacialTransformationMatrixes: true,
           },
         );
         return landmarker as FaceLandmarkerType;
@@ -56,15 +66,14 @@ export function preloadFaceLandmarker() {
   void getFaceLandmarker();
 }
 
-function dist(
-  a: { x: number; y: number },
-  b: { x: number; y: number },
-) {
-  return Math.hypot(a.x - b.x, a.y - b.y);
+function asPoint(p: Landmark): FacePoint3 {
+  return { x: p.x, y: p.y, z: p.z };
 }
 
 function anchorFromLandmarks(
-  points: Array<{ x: number; y: number; z: number }>,
+  points: Landmark[],
+  aspect: number,
+  matrix?: number[],
 ): FaceAnchor | null {
   if (points.length < 455) return null;
 
@@ -74,62 +83,110 @@ function anchorFromLandmarks(
   const rightInner = points[RIGHT_INNER];
   const leftCheek = points[LEFT_CHEEK];
   const rightCheek = points[RIGHT_CHEEK];
-  if (!leftOuter || !rightOuter || !leftInner || !rightInner) return null;
+  const bridgePt = points[BRIDGE] ?? points[6];
+  if (!leftOuter || !rightOuter || !leftInner || !rightInner || !bridgePt) {
+    return null;
+  }
 
-  const leftCenter = points[LEFT_IRIS] ?? {
+  const leftIris = points[LEFT_IRIS] ?? {
     x: (leftOuter.x + leftInner.x) / 2,
     y: (leftOuter.y + leftInner.y) / 2,
+    z: (leftOuter.z + leftInner.z) / 2,
   };
-  const rightCenter = points[RIGHT_IRIS] ?? {
+  const rightIris = points[RIGHT_IRIS] ?? {
     x: (rightOuter.x + rightInner.x) / 2,
     y: (rightOuter.y + rightInner.y) / 2,
+    z: (rightOuter.z + rightInner.z) / 2,
   };
 
-  const cx = (leftCenter.x + rightCenter.x) / 2;
-  const cy = (leftCenter.y + rightCenter.y) / 2;
-  const dx = rightOuter.x - leftOuter.x;
-  const dy = rightOuter.y - leftOuter.y;
-  const eyeSpan = Math.hypot(dx, dy);
+  const leftV = asPoint(leftOuter);
+  const rightV = asPoint(rightOuter);
+  const eyeMid = mid(leftV as Vec3, rightV as Vec3);
+  const eyeSpan = dist2(leftV as Vec3, rightV as Vec3);
   const faceWidth =
-    leftCheek && rightCheek ? dist(leftCheek, rightCheek) : eyeSpan * 1.65;
+    leftCheek && rightCheek
+      ? dist2(asPoint(leftCheek) as Vec3, asPoint(rightCheek) as Vec3)
+      : eyeSpan * 1.65;
 
-  // Frame should cover outer eye corners and a bit of temple; clamp to face.
+  // Frame covers outer eyes + a little temple; clamp to face width.
   const width = Math.min(
     faceWidth * 0.98,
     Math.max(eyeSpan * 1.28, faceWidth * 0.72),
   );
+  const dx = rightOuter.x - leftOuter.x;
+  const dy = rightOuter.y - leftOuter.y;
   const rotation = (Math.atan2(dy, dx) * 180) / Math.PI;
 
+  // Rest glasses slightly below iris line toward the nose saddle.
+  const cy = eyeMid.y + eyeSpan * 0.06;
+
   return {
-    cx,
-    // Sit slightly on the lower eyelid / bridge for natural rest position.
-    cy: cy + eyeSpan * 0.08,
+    cx: eyeMid.x,
+    cy,
     width,
     rotation,
     eyeSpan,
     faceWidth,
+    aspect,
+    pose3d: {
+      leftOuter: leftV,
+      rightOuter: rightV,
+      leftInner: asPoint(leftInner),
+      rightInner: asPoint(rightInner),
+      leftIris: asPoint(leftIris),
+      rightIris: asPoint(rightIris),
+      bridge: asPoint(bridgePt),
+      leftCheek: leftCheek
+        ? asPoint(leftCheek)
+        : { x: leftOuter.x - eyeSpan * 0.2, y: leftOuter.y + eyeSpan * 0.35, z: leftOuter.z },
+      rightCheek: rightCheek
+        ? asPoint(rightCheek)
+        : { x: rightOuter.x + eyeSpan * 0.2, y: rightOuter.y + eyeSpan * 0.35, z: rightOuter.z },
+      matrix,
+    },
   };
 }
 
-export function fallbackFaceAnchor(): FaceAnchor {
+export function fallbackFaceAnchor(aspect = 0.75): FaceAnchor {
+  const eyeSpan = 0.34;
+  const cy = 0.08 + 0.84 * 0.42;
+  const bridge = { x: 0.5, y: cy, z: -0.03 };
+  const leftOuter = { x: 0.5 - eyeSpan / 2, y: cy - 0.01, z: -0.02 };
+  const rightOuter = { x: 0.5 + eyeSpan / 2, y: cy - 0.01, z: -0.02 };
+  const leftInner = { x: 0.5 - eyeSpan * 0.12, y: cy, z: -0.025 };
+  const rightInner = { x: 0.5 + eyeSpan * 0.12, y: cy, z: -0.025 };
+  const leftIris = { x: 0.5 - eyeSpan * 0.28, y: cy - 0.005, z: -0.02 };
+  const rightIris = { x: 0.5 + eyeSpan * 0.28, y: cy - 0.005, z: -0.02 };
+
   return {
     cx: 0.5,
-    cy: 0.08 + 0.84 * 0.42,
+    cy,
     width: 0.5,
     rotation: 0,
-    eyeSpan: 0.34,
+    eyeSpan,
     faceWidth: 0.55,
+    aspect,
+    pose3d: {
+      leftOuter,
+      rightOuter,
+      leftInner,
+      rightInner,
+      leftIris,
+      rightIris,
+      bridge,
+      leftCheek: { x: 0.22, y: cy + 0.12, z: 0 },
+      rightCheek: { x: 0.78, y: cy + 0.12, z: 0 },
+    },
   };
 }
 
-/** Scale stored anchor using the product's real millimetre frame width. */
+/** Scale stored 2D width using the product's real millimetre frame width. */
 export function scaleAnchorForFrame(
   anchor: FaceAnchor,
   frame: Frame,
 ): FaceAnchor {
   const eyeSpan = anchor.eyeSpan || anchor.width * 0.65;
   const faceWidth = anchor.faceWidth || Math.max(anchor.width, eyeSpan * 1.55);
-  // Average adult bizygomatic width ~140mm; map product frameWidth to face.
   const faceMm = 140;
   const ratio = frame.frameWidth / faceMm;
   const width = Math.min(
@@ -142,6 +199,24 @@ export function scaleAnchorForFrame(
   return { ...anchor, eyeSpan, faceWidth, width };
 }
 
+/**
+ * Estimate how wide the glasses should appear in image-normalized width,
+ * using PD / outer-eye as the metric ruler.
+ */
+export function metricFrameWidthFraction(
+  anchor: FaceAnchor,
+  frame: Frame,
+): number {
+  const pose = anchor.pose3d;
+  if (!pose) return scaleAnchorForFrame(anchor, frame).width;
+
+  const pd = dist2(pose.leftIris, pose.rightIris);
+  const outer = dist2(pose.leftOuter, pose.rightOuter);
+  const units =
+    pd > 1e-6 ? pd / MEAN_PD_MM : outer / MEAN_OUTER_EYE_MM;
+  return frame.frameWidth * units;
+}
+
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -152,27 +227,44 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-/** Detect eye-aligned glasses anchor from a face photo data URL. */
+function matrixFromResult(
+  result: {
+    facialTransformationMatrixes?: Array<{ data?: Float32Array | number[] }>;
+  },
+): number[] | undefined {
+  const raw = result.facialTransformationMatrixes?.[0]?.data;
+  if (!raw || raw.length < 16) return undefined;
+  return Array.from(raw);
+}
+
+/** Detect 3D face pose + 2D fallback anchor from a face photo data URL. */
 export async function detectFaceAnchor(
   dataUrl: string,
 ): Promise<FaceAnchor> {
   try {
     const img = await loadImage(dataUrl);
+    const aspect = img.naturalWidth / Math.max(1, img.naturalHeight);
     const landmarker = await getFaceLandmarker();
-    if (!landmarker) return fallbackFaceAnchor();
+    if (!landmarker) return fallbackFaceAnchor(aspect);
 
     const result = landmarker.detect(img);
     const face = result.faceLandmarks?.[0];
-    if (!face?.length) return fallbackFaceAnchor();
+    if (!face?.length) return fallbackFaceAnchor(aspect);
 
-    return anchorFromLandmarks(face) ?? fallbackFaceAnchor();
+    const matrix = matrixFromResult(result);
+    return (
+      anchorFromLandmarks(face, aspect, matrix) ?? fallbackFaceAnchor(aspect)
+    );
   } catch (error) {
     console.error("Face anchor detection failed", error);
     return fallbackFaceAnchor();
   }
 }
 
-/** Same-origin cutout URL so try-on uses real glasses without backdrop. */
+/** Same-origin cutout URL (legacy 2D path). */
 export function frameCutoutUrl(imageUrl: string) {
   return `/api/frame-cutout?src=${encodeURIComponent(imageUrl)}`;
 }
+
+/** Exported for tests / basis helpers. */
+export const FACE_MESH_HINTS = { FOREHEAD, CHIN, BRIDGE };

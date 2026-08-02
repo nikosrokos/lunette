@@ -105,7 +105,7 @@ export default function TryOnPage() {
             faceCapture={faceCapture}
             frame={frame}
             faceAnchor={faceAnchor}
-            label="Cut-out of the real product (colour, lenses, shape) sized to your face"
+            label="3D frame built from the product’s millimetre sizes, seated on your scanned face mesh. Rescan if the last scan was before 3D try-on."
           />
         ) : (
           <div className="notice">
