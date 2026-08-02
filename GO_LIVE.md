@@ -11,6 +11,8 @@ This app is a **working web MVP** with demo data (no real payments, camera ML, o
 | Web app (Next.js) | Ready in this repo |
 | Buyer: face fit, search/filters, try-on, contact seller | Demo UI |
 | Seller: studio page, promote, list a frame | Demo UI |
+| Seller plans Free / Pro (Free = max 6 products) | Demo UI |
+| Admin: spaces, access, Free/Pro tokens | Demo UI (`/admin`, PIN `lunette-admin`) |
 | Shop link vs local-first marketplace | Implemented |
 | Real camera face scan / payments / email | Not yet — see “Later” |
 

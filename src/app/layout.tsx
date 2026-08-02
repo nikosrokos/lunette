@@ -3,6 +3,7 @@ import { DM_Sans, Syne } from "next/font/google";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { PreferencesProvider } from "@/lib/preferences";
+import { SellerAdminProvider } from "@/lib/seller-admin-store";
 import "./globals.css";
 
 const syne = Syne({
@@ -35,11 +36,13 @@ export default function RootLayout({
     <html lang="en" className={`${syne.variable} ${dmSans.variable}`}>
       <body>
         <PreferencesProvider>
-          <div className="shell">
-            <SiteHeader />
-            <main>{children}</main>
-            <SiteFooter />
-          </div>
+          <SellerAdminProvider>
+            <div className="shell">
+              <SiteHeader />
+              <main>{children}</main>
+              <SiteFooter />
+            </div>
+          </SellerAdminProvider>
         </PreferencesProvider>
       </body>
     </html>

@@ -2,19 +2,28 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { frames, getFramesByStudio, studios } from "@/lib/data";
+import { useState } from "react";
+import { getFramesByStudio, studios } from "@/lib/data";
+import {
+  canFeaturePromote,
+  canUseFitMatchBoost,
+} from "@/lib/plans";
+import { useSellerAdmin } from "@/lib/seller-admin-store";
 
 const DEMO_STUDIO = studios[0];
 
 export default function SellerPromotePage() {
-  const studioFrames = useMemo(
-    () => getFramesByStudio(DEMO_STUDIO.slug),
-    [],
-  );
-  const featured = studioFrames.find((frame) => frame.promoted) ?? studioFrames[0];
+  const { usageFor, ready } = useSellerAdmin();
+  const usage = usageFor(DEMO_STUDIO.slug);
+  const studioFrames = getFramesByStudio(DEMO_STUDIO.slug);
+  const featured =
+    studioFrames.find((frame) => frame.promoted) ?? studioFrames[0];
   const [copied, setCopied] = useState(false);
   const studioPath = `/studios/${DEMO_STUDIO.slug}`;
+  const plan = usage?.space.plan ?? "free";
+  const suspended = usage?.space.status === "suspended";
+  const boostOk = canUseFitMatchBoost(plan);
+  const featureOk = canFeaturePromote(plan);
 
   async function copyLink() {
     try {
@@ -37,6 +46,7 @@ export default function SellerPromotePage() {
           Promote
         </Link>
         <Link href="/seller/frames/new">List a frame</Link>
+        <Link href="/seller/plans">Plans</Link>
         <Link href={`/studios/${DEMO_STUDIO.slug}`}>Public studio</Link>
         <Link href="/studios">Marketplace</Link>
       </aside>
@@ -49,10 +59,30 @@ export default function SellerPromotePage() {
           </div>
         </div>
 
-        <div className="notice">
-          Demo workspace for <strong>{DEMO_STUDIO.name}</strong>. Share your
-          studio link so buyers open only your shop.
-        </div>
+        {ready && usage ? (
+          <div className="notice">
+            <strong>{DEMO_STUDIO.name}</strong> ·{" "}
+            <strong>{plan.toUpperCase()}</strong> plan · Products{" "}
+            <strong>
+              {usage.used}
+              {usage.limit === null ? " / unlimited" : ` / ${usage.limit}`}
+            </strong>
+            {usage.atLimit ? " · Free limit reached" : null}
+            {suspended ? " · Access suspended" : null}
+            {" · "}
+            <Link href="/seller/plans">Manage plan</Link>
+          </div>
+        ) : (
+          <div className="notice">
+            Demo workspace for <strong>{DEMO_STUDIO.name}</strong>.
+          </div>
+        )}
+
+        {suspended ? (
+          <div className="notice">
+            This seller space is suspended. Contact admin to restore access.
+          </div>
+        ) : null}
 
         {featured ? (
           <div className="promo-feature">
@@ -70,8 +100,9 @@ export default function SellerPromotePage() {
                 {featured.name}
               </h3>
               <p className="lede">
-                Boost this frame in Fit Match and share your studio URL with
-                customers.
+                {featureOk
+                  ? "Boost this frame in Fit Match and share your studio URL."
+                  : "Studio link sharing is available on Free. Fit Match boost and featured slots are Pro."}
               </p>
               <p className="meta-sub" style={{ margin: "1rem 0" }}>
                 Studio link: {studioPath}
@@ -80,9 +111,15 @@ export default function SellerPromotePage() {
                 <button type="button" className="btn btn-gold" onClick={copyLink}>
                   {copied ? "Link copied" : "Copy studio link"}
                 </button>
-                <Link href="/seller/frames/new" className="btn btn-ghost">
-                  Feature another frame
-                </Link>
+                {boostOk ? (
+                  <Link href="/seller/frames/new" className="btn btn-ghost">
+                    Boost in Fit Match
+                  </Link>
+                ) : (
+                  <Link href="/seller/plans" className="btn btn-ghost">
+                    Upgrade for Fit Match boost
+                  </Link>
+                )}
               </div>
             </div>
           </div>
@@ -94,7 +131,7 @@ export default function SellerPromotePage() {
             <li key={frame.id}>
               <span>
                 {frame.name}
-                {frame.promoted ? (
+                {frame.promoted && featureOk ? (
                   <span className="fit-badge"> · Promoted</span>
                 ) : null}
               </span>
@@ -103,17 +140,19 @@ export default function SellerPromotePage() {
               </Link>
             </li>
           ))}
-          {studioFrames.length === 0
-            ? frames.slice(0, 3).map((frame) => (
-                <li key={frame.id}>
-                  <span>{frame.name}</span>
-                  <Link href={`/frames/${frame.id}`} className="btn-text">
-                    View
-                  </Link>
-                </li>
-              ))
-            : null}
         </ul>
+
+        <div className="cta-row" style={{ marginTop: "1.5rem" }}>
+          {usage?.atLimit ? (
+            <Link href="/seller/plans" className="btn btn-gold">
+              Upgrade to add more than {usage.limit} products
+            </Link>
+          ) : (
+            <Link href="/seller/frames/new" className="btn btn-gold">
+              List a frame
+            </Link>
+          )}
+        </div>
       </div>
     </div>
   );

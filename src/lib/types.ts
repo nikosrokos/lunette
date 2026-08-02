@@ -17,6 +17,20 @@ export interface FitProfile {
   scannedAt: string;
 }
 
+export type PlanId = "free" | "pro";
+
+export type AccessStatus = "active" | "suspended" | "pending";
+
+export interface PlanDefinition {
+  id: PlanId;
+  name: string;
+  priceLabel: string;
+  /** null = unlimited */
+  productLimit: number | null;
+  features: string[];
+  missing: string[];
+}
+
 export interface Studio {
   slug: string;
   name: string;
@@ -28,6 +42,29 @@ export interface Studio {
   replyTime: string;
   email: string;
   promoted?: boolean;
+}
+
+/** Admin-managed seller workspace (plan, access, tokens). */
+export interface SellerSpace {
+  id: string;
+  studioSlug: string;
+  plan: PlanId;
+  status: AccessStatus;
+  /** Extra products listed beyond seed catalog (demo). */
+  extraProductCount: number;
+  notes: string;
+  updatedAt: string;
+}
+
+export interface AccessToken {
+  id: string;
+  code: string;
+  plan: PlanId;
+  /** null = unused / available to redeem */
+  assignedStudioSlug: string | null;
+  status: "available" | "redeemed" | "revoked";
+  createdAt: string;
+  note: string;
 }
 
 export interface Frame {

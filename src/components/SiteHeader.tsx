@@ -31,6 +31,9 @@ export function SiteHeader() {
           <Link href="/seller/promote" className={linkClass("/seller")}>
             For sellers
           </Link>
+          <Link href="/admin" className={linkClass("/admin")}>
+            Admin
+          </Link>
         </nav>
         <div className="nav-meta">
           <label>

@@ -9,6 +9,8 @@ Web app that helps people find sunglasses that fit their face — and helps desi
 - **Local-first** — general entry shows studios in the user’s country first
 - **Shop links** — `/studios/[slug]` opens that seller only
 - **Seller tools** — promote workspace, list a frame, public studio page
+- **Plans** — Free (max 6 products) and Pro (unlimited + boost)
+- **Admin** — manage seller spaces, access, and Free/Pro tokens (`/admin`)
 - **Contact seller** — message flow to help buyers purchase
 
 ## Quick start
