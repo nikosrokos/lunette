@@ -3,13 +3,12 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { FrameCard } from "@/components/FrameCard";
-import { TryOnPortrait } from "@/components/TryOnPortrait";
 import { frames, sortFramesLocalFirst } from "@/lib/data";
 import { assessFrameFit, formatFitSummary } from "@/lib/fit";
 import { usePreferences } from "@/lib/preferences";
 
 export default function FitResultsPage() {
-  const { fitProfile, countryCode, faceCapture, faceAnchor } = usePreferences();
+  const { fitProfile, countryCode } = usePreferences();
 
   const ranked = useMemo(() => {
     if (!fitProfile) return [];
@@ -77,23 +76,21 @@ export default function FitResultsPage() {
           </Link>
         </div>
 
-        {faceCapture && top ? (
+        {top ? (
           <div className="fit-preview-block">
-            <TryOnPortrait
-              faceCapture={faceCapture}
-              frame={top.frame}
-              faceAnchor={faceAnchor}
-              label={`Real ${top.frame.name} on your face · ${top.score}% — ${top.reason}`}
-            />
+            <p className="lede">
+              Top match: <strong>{top.frame.name}</strong> · {top.score}% —{" "}
+              {top.reason}
+            </p>
             <div className="cta-row" style={{ marginTop: "1rem" }}>
               <Link
                 href={`/frames/${top.frame.id}/try-on`}
                 className="btn btn-gold"
               >
-                Try on online (live mirror)
+                Try on
               </Link>
               <Link href={`/frames/${top.frame.id}`} className="btn btn-ghost">
-                View top match
+                View product
               </Link>
             </div>
           </div>

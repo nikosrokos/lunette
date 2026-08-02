@@ -21,16 +21,16 @@ function FitScanContent() {
     setFaceCapture(result.dataUrl);
 
     try {
-      setStatus("Reading your 3D face pose…");
+      setStatus("Measuring your face for fit %…");
       const [profile, anchor] = await Promise.all([
         Promise.resolve(analyzeFitFromImageData(result.imageData)),
         detectFaceAnchor(result.dataUrl),
       ]);
       setFitProfile(profile);
       setFaceAnchor(anchor);
-      setStatus("Ready for 3D try-on…");
+      setStatus("Done…");
     } catch {
-      setStatus("Using guided placement…");
+      setStatus("Using guided fit…");
     }
 
     if (next && next.startsWith("/")) {
@@ -45,10 +45,10 @@ function FitScanContent() {
       <div className="container scan-card" style={{ width: "min(100%, 520px)" }}>
         <h2>Face fit</h2>
         <p className="lede" style={{ margin: "0.75rem auto 0" }}>
-          Enable your camera, centre your face in the guide, then capture. We
-          build a 3D face pose so frames — generated from each product’s
-          millimetre sizes — sit on your eyes and bridge.
-          {next ? " After scanning you can try frames on." : ""}
+          Optional scan for fit % recommendations. To see glasses on your face,
+          use <strong>Try on</strong> on any product — that opens the live
+          camera mirror.
+          {next ? " Continue after capture." : ""}
         </p>
 
         <div style={{ marginTop: "1.5rem" }}>
@@ -58,7 +58,7 @@ function FitScanContent() {
         <p className="meta-sub" style={{ marginTop: "1rem" }}>
           {scanning
             ? status || "Processing your scan…"
-            : "Camera stays in your browser. Face photo + 3D landmarks stay on this device for try-on."}
+            : "Camera stays in your browser. Used only for fit matching."}
         </p>
       </div>
     </div>

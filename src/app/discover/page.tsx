@@ -70,7 +70,7 @@ export default function DiscoverPage() {
           </div>
         ) : (
           <div className="notice">
-            No face scan yet — try-on still works.{" "}
+            No face scan yet — use Try on on any frame.{" "}
             <a href="/fit">Scan to see fit %</a>
           </div>
         )}

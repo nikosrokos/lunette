@@ -44,14 +44,14 @@ export default function TryOnPage() {
       <div className="container tryon-page">
         <div className="section-head">
           <div>
-            <h2>Try on online</h2>
+            <h2>Try on</h2>
             <p>
               {frame.name} by {studio.name}
               {assessment ? ` · ${assessment.score}% match` : ""}
             </p>
             <p className="fit-reason" style={{ marginTop: "0.35rem" }}>
-              Live virtual mirror — use your camera or upload a photo, like
-              Lentiamo. Your image stays in the browser.
+              Live camera mirror — allow the camera, centre your face, and the
+              glasses follow you. Or upload a photo. Stays in your browser.
             </p>
           </div>
           <Link href={`/frames/${frame.id}`} className="btn-text">

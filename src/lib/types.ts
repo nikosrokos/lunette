@@ -18,17 +18,14 @@ export interface FitProfile {
   scannedAt: string;
 }
 
-/** 3D point in MediaPipe image space (x/y 0–1, z relative depth). */
+/** Point in MediaPipe image space (x/y 0–1, z relative depth). */
 export interface FacePoint3 {
   x: number;
   y: number;
   z: number;
 }
 
-/**
- * Face pose for try-on.
- * 2D fields keep older UI paths working; 3D fields drive mesh placement.
- */
+/** Face pose stored from an optional fit scan (photo try-on helper). */
 export interface FaceAnchor {
   cx: number;
   cy: number;
@@ -41,7 +38,7 @@ export interface FaceAnchor {
   faceWidth: number;
   /** Image width / height when the scan was taken */
   aspect?: number;
-  /** Key 3D landmarks for parametric glasses alignment */
+  /** Key landmarks for placement */
   pose3d?: {
     leftOuter: FacePoint3;
     rightOuter: FacePoint3;

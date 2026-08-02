@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
-  frameCutoutUrl,
   getVideoFaceLandmarker,
   poseFromLandmarks,
   preloadVideoFaceLandmarker,
@@ -21,24 +20,33 @@ interface VirtualMirrorProps {
   frame: Frame;
 }
 
+const EMPTY_POSE: LiveGlassesPose = {
+  cx: 0.5,
+  cy: 0.42,
+  width: 0.42,
+  rotation: 0,
+  ok: false,
+};
+
 /**
- * Lentiamo-style virtual mirror: live webcam (or uploaded photo) with
- * product glasses tracked onto the eyes in real time.
+ * Live virtual mirror: webcam (or photo) with glasses tracked on the eyes.
  */
 export function VirtualMirror({ frame }: VirtualMirrorProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const photoRef = useRef<HTMLImageElement | null>(null);
-  const glassesRef = useRef<HTMLImageElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef(0);
-  const photoPoseRef = useRef<LiveGlassesPose | null>(null);
+  const lastTsRef = useRef(0);
   const faceFoundRef = useRef(false);
+  const poseRafRef = useRef(0);
+
   const [mode, setMode] = useState<MirrorMode>("live");
   const [status, setStatus] = useState("Starting camera…");
   const [ready, setReady] = useState(false);
+  const [trackerReady, setTrackerReady] = useState(false);
   const [faceFound, setFaceFound] = useState(false);
-  const [cutoutOk, setCutoutOk] = useState(false);
+  const [pose, setPose] = useState<LiveGlassesPose>(EMPTY_POSE);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [aspect, setAspect] = useState(4 / 3);
 
   function updateFaceFound(next: boolean) {
     if (faceFoundRef.current === next) return;
@@ -46,20 +54,22 @@ export function VirtualMirror({ frame }: VirtualMirrorProps) {
     setFaceFound(next);
   }
 
+  // Throttle React pose updates so the overlay stays smooth.
+  function publishPose(next: LiveGlassesPose) {
+    cancelAnimationFrame(poseRafRef.current);
+    poseRafRef.current = requestAnimationFrame(() => setPose(next));
+  }
+
   useEffect(() => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      glassesRef.current = img;
-      setCutoutOk(true);
-    };
-    img.onerror = () => {
-      glassesRef.current = null;
-      setCutoutOk(false);
-    };
-    img.src = frameCutoutUrl(frame.image);
+    let cancelled = false;
     preloadVideoFaceLandmarker();
-  }, [frame.image]);
+    void getVideoFaceLandmarker().then((lm) => {
+      if (!cancelled) setTrackerReady(Boolean(lm));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (mode !== "live") return;
@@ -68,7 +78,8 @@ export function VirtualMirror({ frame }: VirtualMirrorProps) {
     async function start() {
       setStatus("Allow camera access to try on…");
       setReady(false);
-      photoPoseRef.current = null;
+      publishPose(EMPTY_POSE);
+      updateFaceFound(false);
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
@@ -87,8 +98,11 @@ export function VirtualMirror({ frame }: VirtualMirrorProps) {
         if (!video) return;
         video.srcObject = stream;
         await video.play();
+        if (video.videoWidth > 0 && video.videoHeight > 0) {
+          setAspect(video.videoWidth / video.videoHeight);
+        }
         setReady(true);
-        setStatus("Live mirror — move your head like on Lentiamo");
+        setStatus("Camera on — loading face tracker…");
       } catch {
         setStatus("Camera blocked. Allow access, or upload a photo instead.");
         setReady(false);
@@ -104,92 +118,57 @@ export function VirtualMirror({ frame }: VirtualMirrorProps) {
   }, [mode]);
 
   useEffect(() => {
+    if (mode === "live" && ready && trackerReady) {
+      setStatus("Live mirror — centre your face");
+    }
+  }, [mode, ready, trackerReady]);
+
+  useEffect(() => {
+    if (mode !== "live" || !ready) return;
     let active = true;
-    let timer = 0;
 
     async function loop() {
       const landmarker = await getVideoFaceLandmarker();
-      const canvas = canvasRef.current;
-      if (!canvas || !active) return;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
+      if (!landmarker || !active) {
+        if (active) {
+          setTrackerReady(false);
+          setStatus(
+            "Face tracker failed to load. Try upload photo, or refresh.",
+          );
+        }
+        return;
+      }
+      setTrackerReady(true);
+      setStatus("Live mirror — centre your face");
 
       const tick = () => {
         if (!active) return;
-
-        if (mode === "live") {
-          const video = videoRef.current;
-          if (!video || video.readyState < 2) {
-            rafRef.current = requestAnimationFrame(tick);
-            return;
-          }
-          const sourceW = video.videoWidth;
-          const sourceH = video.videoHeight;
-          if (canvas.width !== sourceW || canvas.height !== sourceH) {
-            canvas.width = sourceW;
-            canvas.height = sourceH;
-          }
-
-          // Draw mirrored video (real mirror).
-          ctx.save();
-          ctx.translate(sourceW, 0);
-          ctx.scale(-1, 1);
-          ctx.drawImage(video, 0, 0, sourceW, sourceH);
-          ctx.restore();
-
-          if (landmarker) {
-            const result = landmarker.detectForVideo(video, performance.now());
-            const face = result.faceLandmarks?.[0];
-            if (face?.length) {
-              const mirrored = face.map((p) => ({ ...p, x: 1 - p.x }));
-              const pose = poseFromLandmarks(mirrored, frame);
-              updateFaceFound(pose.ok);
-              if (pose.ok) {
-                drawGlasses(
-                  ctx,
-                  sourceW,
-                  sourceH,
-                  pose,
-                  frame,
-                  glassesRef.current,
-                );
-              }
-            } else {
-              updateFaceFound(false);
-            }
-          }
+        const video = videoRef.current;
+        if (!video || video.readyState < 2) {
           rafRef.current = requestAnimationFrame(tick);
           return;
         }
 
-        // Photo mode — static composite, refresh lightly for late cutout.
-        const photo = photoRef.current;
-        const pose = photoPoseRef.current;
-        if (photo && photo.naturalWidth) {
-          const sourceW = photo.naturalWidth;
-          const sourceH = photo.naturalHeight;
-          if (canvas.width !== sourceW || canvas.height !== sourceH) {
-            canvas.width = sourceW;
-            canvas.height = sourceH;
-          }
-          ctx.drawImage(photo, 0, 0, sourceW, sourceH);
-          if (pose?.ok) {
-            drawGlasses(
-              ctx,
-              sourceW,
-              sourceH,
-              pose,
-              frame,
-              glassesRef.current,
-            );
-            updateFaceFound(true);
+        try {
+          const now = performance.now();
+          const ts = now <= lastTsRef.current ? lastTsRef.current + 1 : now;
+          lastTsRef.current = ts;
+          const result = landmarker.detectForVideo(video, ts);
+          const face = result.faceLandmarks?.[0];
+          if (face?.length) {
+            // Video is CSS-mirrored; flip X so overlay matches the mirror.
+            const mirrored = face.map((p) => ({ ...p, x: 1 - p.x }));
+            const next = poseFromLandmarks(mirrored, frame);
+            updateFaceFound(next.ok);
+            if (next.ok) publishPose(next);
           } else {
             updateFaceFound(false);
           }
+        } catch (error) {
+          console.warn("detectForVideo", error);
         }
-        timer = window.setTimeout(() => {
-          rafRef.current = requestAnimationFrame(tick);
-        }, 250);
+
+        rafRef.current = requestAnimationFrame(tick);
       };
 
       rafRef.current = requestAnimationFrame(tick);
@@ -199,16 +178,19 @@ export function VirtualMirror({ frame }: VirtualMirrorProps) {
     return () => {
       active = false;
       cancelAnimationFrame(rafRef.current);
-      window.clearTimeout(timer);
+      cancelAnimationFrame(poseRafRef.current);
     };
-  }, [mode, frame, ready, cutoutOk]);
+  }, [mode, ready, frame]);
 
   async function onUpload(file: File | null) {
     if (!file) return;
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = async () => {
-      photoRef.current = img;
+      setPhotoUrl(url);
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+        setAspect(img.naturalWidth / img.naturalHeight);
+      }
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
       setMode("photo");
@@ -222,35 +204,60 @@ export function VirtualMirror({ frame }: VirtualMirrorProps) {
         if (!cctx) throw new Error("canvas");
         cctx.drawImage(img, 0, 0);
         const anchor = await detectFaceAnchor(c.toDataURL("image/jpeg", 0.9));
-        photoPoseRef.current = {
+        const next: LiveGlassesPose = {
           cx: anchor.cx,
           cy: anchor.cy,
           width: metricFrameWidthFraction(anchor, frame),
           rotation: anchor.rotation,
           ok: true,
         };
-        setStatus("Photo try-on — upload another or switch to live camera");
-        setFaceFound(true);
+        publishPose(next);
+        updateFaceFound(true);
+        setStatus("Photo try-on ready");
       } catch {
-        photoPoseRef.current = null;
+        publishPose(EMPTY_POSE);
+        updateFaceFound(false);
         setStatus("Could not find a face in that photo. Try another.");
-        setFaceFound(false);
       }
     };
     img.src = url;
   }
 
+  const glassesStyle: CSSProperties = {
+    left: `${pose.cx * 100}%`,
+    top: `${pose.cy * 100}%`,
+    width: `${Math.max(pose.width * 100, 28)}%`,
+    transform: `translate(-50%, -50%) rotate(${pose.rotation}deg)`,
+    opacity: pose.ok ? 1 : 0,
+  };
+
   return (
     <div className="virtual-mirror">
-      <div className="virtual-mirror-stage">
-        <video
-          ref={videoRef}
-          className="virtual-mirror-video"
-          playsInline
-          muted
+      <div
+        className="virtual-mirror-stage"
+        style={{ aspectRatio: `${aspect}` }}
+      >
+        {mode === "live" ? (
+          <video
+            ref={videoRef}
+            className="virtual-mirror-video is-visible"
+            playsInline
+            muted
+            autoPlay
+          />
+        ) : photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photoUrl} alt="Your photo" className="virtual-mirror-photo" />
+        ) : null}
+
+        <div
+          className={`virtual-mirror-glasses${pose.ok ? " is-on" : ""}`}
+          style={glassesStyle}
           aria-hidden="true"
-        />
-        <canvas ref={canvasRef} className="virtual-mirror-canvas" />
+        >
+          <ParametricGlasses frame={frame} />
+        </div>
+
         {!ready ? (
           <div className="virtual-mirror-overlay-msg">{status}</div>
         ) : null}
@@ -269,8 +276,10 @@ export function VirtualMirror({ frame }: VirtualMirrorProps) {
             type="button"
             className="btn btn-gold"
             onClick={() => {
-              photoRef.current = null;
-              photoPoseRef.current = null;
+              if (photoUrl) URL.revokeObjectURL(photoUrl);
+              setPhotoUrl(null);
+              publishPose(EMPTY_POSE);
+              updateFaceFound(false);
               setMode("live");
               setStatus("Starting camera…");
             }}
@@ -292,94 +301,51 @@ export function VirtualMirror({ frame }: VirtualMirrorProps) {
   );
 }
 
-function drawGlasses(
-  ctx: CanvasRenderingContext2D,
-  w: number,
-  h: number,
-  pose: LiveGlassesPose,
-  frame: Frame,
-  cutout: HTMLImageElement | null,
-) {
-  const widthPx = pose.width * w;
-  const x = pose.cx * w;
-  const y = pose.cy * h;
-  const rad = (pose.rotation * Math.PI) / 180;
-
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(rad);
-  ctx.shadowColor = "rgba(28, 26, 23, 0.35)";
-  ctx.shadowBlur = 12;
-  ctx.shadowOffsetY = 4;
-
-  if (cutout && cutout.naturalWidth > 0) {
-    const aspect = cutout.naturalHeight / cutout.naturalWidth;
-    // Product packshots are often square; clamp height so lenses don't dominate.
-    const heightPx = widthPx * Math.min(Math.max(aspect, 0.28), 0.62);
-    ctx.drawImage(cutout, -widthPx / 2, -heightPx / 2, widthPx, heightPx);
-  } else {
-    drawParametricFront(ctx, widthPx, frame);
-  }
-  ctx.restore();
-}
-
-function drawParametricFront(
-  ctx: CanvasRenderingContext2D,
-  widthPx: number,
-  frame: Frame,
-) {
+/** SVG glasses from product millimetre sizes — always drawable, no image deps. */
+function ParametricGlasses({ frame }: { frame: Frame }) {
   const layout = layoutFromFrame(frame);
   const colors = frameColors(frame.material);
-  const scale = widthPx / layout.frameWidth;
-  const lw = layout.lensWidth * scale;
-  const lh = layout.lensHeight * scale;
-  const bridge = layout.bridge * scale;
-  const rim = Math.max(2, layout.rim * scale);
-  const cx = bridge / 2 + lw / 2;
+  const { lensWidth, lensHeight, bridge, frameWidth } = layout;
+  const viewW = frameWidth;
+  const viewH = Math.max(lensHeight * 1.4, 64);
+  const cy = viewH / 2;
+  const leftCx = viewW / 2 - bridge / 2 - lensWidth / 2;
+  const rightCx = viewW / 2 + bridge / 2 + lensWidth / 2;
+  const rx = lensWidth / 2;
+  const ry = lensHeight / 2;
 
-  ctx.lineWidth = rim;
-  ctx.strokeStyle = colors.rim;
-  ctx.fillStyle = colors.lens;
-
-  roundLens(ctx, -cx, 0, lw, lh, frame.shape);
-  roundLens(ctx, cx, 0, lw, lh, frame.shape);
-
-  ctx.beginPath();
-  ctx.moveTo(-bridge / 2, -lh * 0.05);
-  ctx.lineTo(bridge / 2, -lh * 0.05);
-  ctx.stroke();
-}
-
-function roundLens(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  cy: number,
-  lw: number,
-  lh: number,
-  shape: Frame["shape"],
-) {
-  ctx.beginPath();
-  if (shape === "round" || shape === "aviator") {
-    ctx.ellipse(
-      cx,
-      cy + (shape === "aviator" ? lh * 0.06 : 0),
-      lw / 2,
-      lh / 2,
-      0,
-      0,
-      Math.PI * 2,
-    );
-  } else {
-    const x = cx - lw / 2;
-    const y = cy - lh / 2;
-    const r = Math.min(lw, lh) * 0.18;
-    ctx.moveTo(x + r, y);
-    ctx.arcTo(x + lw, y, x + lw, y + lh, r);
-    ctx.arcTo(x + lw, y + lh, x, y + lh, r);
-    ctx.arcTo(x, y + lh, x, y, r);
-    ctx.arcTo(x, y, x + lw, y, r);
-    ctx.closePath();
-  }
-  ctx.fill();
-  ctx.stroke();
+  return (
+    <svg
+      className="virtual-mirror-svg"
+      viewBox={`0 0 ${viewW} ${viewH}`}
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <ellipse
+        cx={leftCx}
+        cy={cy}
+        rx={rx}
+        ry={ry}
+        fill={colors.lens}
+        stroke={colors.rim}
+        strokeWidth={layout.rim}
+      />
+      <ellipse
+        cx={rightCx}
+        cy={cy}
+        rx={rx}
+        ry={ry}
+        fill={colors.lens}
+        stroke={colors.rim}
+        strokeWidth={layout.rim}
+      />
+      <path
+        d={`M ${leftCx + rx} ${cy - ry * 0.08} H ${rightCx - rx}`}
+        stroke={colors.rim}
+        strokeWidth={layout.rim * 0.95}
+        fill="none"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 }

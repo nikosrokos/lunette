@@ -1,6 +1,6 @@
 import type { Frame, FrameShape, Material } from "./types";
 
-/** Millimetre layout used to build a parametric 3D frame. */
+/** Millimetre layout used to build a parametric try-on frame. */
 export interface GlassesLayoutMm {
   lensWidth: number;
   lensHeight: number;

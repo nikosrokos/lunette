@@ -39,9 +39,9 @@ export default function NewFramePage() {
         </p>
         <h2 style={{ marginTop: "0.5rem" }}>List a frame</h2>
         <p className="lede" style={{ marginTop: "0.75rem" }}>
-          Enter the optical sizes (lens, bridge, temple, frame width). LUNETTE
-          builds a 3D try-on model from those numbers — no product 3D scan
-          required for the MVP. A clean packshot still helps the product page.
+          Enter the optical sizes (lens, bridge, temple, frame width). Try-on
+          uses these measurements to size the glasses on the live camera
+          mirror. A clean packshot still helps the product page.
         </p>
 
         {ready && usage ? (
@@ -130,7 +130,7 @@ export default function NewFramePage() {
               <input name="temple" type="number" required defaultValue={145} />
             </label>
             <label>
-              Frame width (mm) — drives 3D try-on scale
+              Frame width (mm) — drives try-on scale
               <input
                 name="frameWidth"
                 type="number"
@@ -139,7 +139,7 @@ export default function NewFramePage() {
               />
             </label>
             <label>
-              Shape (3D lens silhouette)
+              Shape
               <select name="shape" defaultValue="wayfarer">
                 <option value="wayfarer">Wayfarer</option>
                 <option value="aviator">Aviator</option>

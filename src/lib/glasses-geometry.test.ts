@@ -43,7 +43,7 @@ describe("glasses layout from sizes", () => {
     expect(unitsPerMm(null, MEAN_OUTER_EYE_MM)).toBeCloseTo(1, 6);
   });
 
-  it("estimates on-face width from 3D pose + frameWidth", () => {
+  it("estimates on-face width from pose + frameWidth", () => {
     const anchor = fallbackFaceAnchor(0.75);
     const fraction = metricFrameWidthFraction(anchor, sample);
     expect(fraction).toBeGreaterThan(0.35);

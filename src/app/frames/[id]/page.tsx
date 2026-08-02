@@ -76,7 +76,7 @@ export default function FrameDetailPage() {
               <Link href={`/fit?next=/frames/${frame.id}`}>
                 scan your face
               </Link>{" "}
-              for fit % match. Or try on online with your camera now.
+              for fit % match — or open Try on with your camera now.
             </div>
           )}
 
@@ -138,7 +138,7 @@ export default function FrameDetailPage() {
               href={`/frames/${frame.id}/try-on`}
               className="btn btn-primary"
             >
-              Try on online
+              Try on
             </Link>
             <Link href="/discover" className="btn-text">
               Back to discover

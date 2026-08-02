@@ -27,22 +27,32 @@ export function FrameCard({
   );
 
   return (
-    <Link href={`/frames/${frame.id}`} className="frame-item">
-      <div className="media">
-        <Image
-          src={frame.image}
-          alt={`${frame.name} by ${studio?.name ?? "studio"}`}
-          width={800}
-          height={1000}
-        />
+    <article className="frame-item">
+      <Link href={`/frames/${frame.id}`} className="frame-item-main">
+        <div className="media">
+          <Image
+            src={frame.image}
+            alt={`${frame.name} by ${studio?.name ?? "studio"}`}
+            width={800}
+            height={1000}
+          />
+        </div>
+        <div className="meta-title">{frame.name}</div>
+        <div className="meta-sub">{studio?.name}</div>
+        {typeof fitScore === "number" ? (
+          <div className="fit-badge">{fitScore}% match</div>
+        ) : null}
+        {fitReason ? <p className="fit-reason">{fitReason}</p> : null}
+        {isLocal ? <div className="local-tag">Local</div> : null}
+      </Link>
+      <div className="frame-item-actions">
+        <Link href={`/frames/${frame.id}/try-on`} className="btn btn-gold">
+          Try on
+        </Link>
+        <Link href={`/frames/${frame.id}`} className="btn btn-ghost">
+          Details
+        </Link>
       </div>
-      <div className="meta-title">{frame.name}</div>
-      <div className="meta-sub">{studio?.name}</div>
-      {typeof fitScore === "number" ? (
-        <div className="fit-badge">{fitScore}% match</div>
-      ) : null}
-      {fitReason ? <p className="fit-reason">{fitReason}</p> : null}
-      {isLocal ? <div className="local-tag">Local</div> : null}
-    </Link>
+    </article>
   );
 }

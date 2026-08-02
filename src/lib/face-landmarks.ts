@@ -1,6 +1,7 @@
 import type { FaceAnchor, FacePoint3, Frame } from "./types";
 import { dist2, mid, type Vec3 } from "./vec3";
 import { MEAN_OUTER_EYE_MM, MEAN_PD_MM } from "./glasses-geometry";
+import { FACE_LANDMARKER_MODEL, MEDIAPIPE_WASM_PATH } from "./mediapipe";
 
 /** MediaPipe landmark indices for glasses placement. */
 const LEFT_OUTER = 33;
@@ -34,15 +35,13 @@ async function getFaceLandmarker(): Promise<FaceLandmarkerType | null> {
     landmarkerPromise = (async () => {
       try {
         const vision = await import("@mediapipe/tasks-vision");
-        const fileset = await vision.FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm",
-        );
+        const fileset =
+          await vision.FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_PATH);
         const landmarker = await vision.FaceLandmarker.createFromOptions(
           fileset,
           {
             baseOptions: {
-              modelAssetPath:
-                "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.tflite",
+              modelAssetPath: FACE_LANDMARKER_MODEL,
               delegate: "CPU",
             },
             runningMode: "IMAGE",
@@ -237,7 +236,7 @@ function matrixFromResult(
   return Array.from(raw);
 }
 
-/** Detect 3D face pose + 2D fallback anchor from a face photo data URL. */
+/** Detect face pose + fallback anchor from a face photo data URL. */
 export async function detectFaceAnchor(
   dataUrl: string,
 ): Promise<FaceAnchor> {
