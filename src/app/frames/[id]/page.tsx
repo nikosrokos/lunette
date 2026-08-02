@@ -5,16 +5,26 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { ContactModal } from "@/components/ContactModal";
-import { getFrame, getStudio } from "@/lib/data";
+import { getFrame } from "@/lib/data";
 import { formatFaceShape, scoreFrameFit } from "@/lib/fit";
 import { usePreferences } from "@/lib/preferences";
+import { useSellerAdmin } from "@/lib/seller-admin-store";
 
 export default function FrameDetailPage() {
   const params = useParams<{ id: string }>();
   const frame = getFrame(params.id);
-  const studio = frame ? getStudio(frame.studioSlug) : undefined;
+  const { resolveStudio, ready } = useSellerAdmin();
+  const studio = frame ? resolveStudio(frame.studioSlug) : undefined;
   const { fitProfile } = usePreferences();
   const [contactOpen, setContactOpen] = useState(false);
+
+  if (!ready) {
+    return (
+      <div className="section">
+        <div className="container">Loading…</div>
+      </div>
+    );
+  }
 
   if (!frame || !studio) {
     return (

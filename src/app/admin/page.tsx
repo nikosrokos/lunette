@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
-import { getStudio } from "@/lib/data";
+import { BrandingForm } from "@/components/BrandingForm";
+import { slugifyName } from "@/lib/branding";
+import { COUNTRIES } from "@/lib/data";
 import { FREE_PRODUCT_LIMIT, PLANS } from "@/lib/plans";
 import {
   DEMO_ADMIN_PIN,
@@ -17,9 +19,13 @@ export default function AdminPage() {
     isAdmin,
     spaces,
     tokens,
+    globalBranding,
     loginAdmin,
     logoutAdmin,
     updateSpace,
+    updateStudioBranding,
+    updateGlobalBranding,
+    createSellerSpace,
     createToken,
     revokeToken,
     resetDemoData,
@@ -29,6 +35,18 @@ export default function AdminPage() {
   const [tokenPlan, setTokenPlan] = useState<PlanId>("pro");
   const [tokenNote, setTokenNote] = useState("");
   const [createdCode, setCreatedCode] = useState("");
+  const [brandingSlug, setBrandingSlug] = useState("");
+  const [createMsg, setCreateMsg] = useState("");
+  const [newSeller, setNewSeller] = useState({
+    name: "",
+    slug: "",
+    countryCode: "FR",
+    city: "",
+    bio: "",
+    email: "",
+    plan: "free" as PlanId,
+    bannerImage: "",
+  });
 
   if (!ready) {
     return (
@@ -44,7 +62,7 @@ export default function AdminPage() {
         <div className="container" style={{ maxWidth: 480 }}>
           <h2>Admin</h2>
           <p className="lede" style={{ marginTop: "0.75rem" }}>
-            Manage seller spaces, access, and Free / Pro tokens.
+            Manage seller spaces, access, branding, and Free / Pro tokens.
           </p>
           <form
             className="form"
@@ -82,6 +100,8 @@ export default function AdminPage() {
   const proSpaces = spaces.filter((space) => space.plan === "pro").length;
   const suspended = spaces.filter((space) => space.status === "suspended").length;
   const availableTokens = tokens.filter((token) => token.status === "available");
+  const brandingSpace =
+    spaces.find((space) => space.studioSlug === brandingSlug) ?? spaces[0];
 
   return (
     <div className="section">
@@ -90,7 +110,8 @@ export default function AdminPage() {
           <div>
             <h2>Admin</h2>
             <p>
-              Seller spaces, access status, and Free / Pro activation tokens.
+              Open seller pages (name + URL), manage access, site/seller look,
+              and Free / Pro tokens.
             </p>
           </div>
           <div className="cta-row">
@@ -127,10 +148,229 @@ export default function AdminPage() {
         </div>
 
         <div className="notice">
-          Free plan limit: <strong>{FREE_PRODUCT_LIMIT} products</strong>. Pro is
-          unlimited. Payments are not connected yet — use tokens or set plan
-          manually.
+          Free plan limit: <strong>{FREE_PRODUCT_LIMIT} products</strong>. Only
+          admin sets seller <strong>name</strong> and <strong>URL</strong> when
+          opening a new page. Sellers can edit their own colours/banner.
         </div>
+
+        <h3 className="admin-heading">Open new seller page</h3>
+        <p className="meta-sub" style={{ marginBottom: "1rem" }}>
+          Admin-only: name and URL are locked for the seller after creation.
+        </p>
+        <form
+          className="form admin-create-seller"
+          onSubmit={(event: FormEvent) => {
+            event.preventDefault();
+            const result = createSellerSpace(newSeller);
+            setCreateMsg(result.message);
+            if (result.ok && result.space) {
+              setBrandingSlug(result.space.studioSlug);
+              setNewSeller({
+                name: "",
+                slug: "",
+                countryCode: "FR",
+                city: "",
+                bio: "",
+                email: "",
+                plan: "free",
+                bannerImage: "",
+              });
+            }
+          }}
+        >
+          <label>
+            Studio name
+            <input
+              required
+              value={newSeller.name}
+              onChange={(e) => {
+                const name = e.target.value;
+                setNewSeller((prev) => ({
+                  ...prev,
+                  name,
+                  slug: prev.slug || slugifyName(name),
+                }));
+              }}
+              placeholder="Atelier Nova"
+            />
+          </label>
+          <label>
+            URL slug (/studios/…)
+            <input
+              required
+              value={newSeller.slug}
+              onChange={(e) =>
+                setNewSeller((prev) => ({
+                  ...prev,
+                  slug: e.target.value.toLowerCase(),
+                }))
+              }
+              placeholder="atelier-nova"
+            />
+          </label>
+          <label>
+            Country
+            <select
+              className="country-select"
+              value={newSeller.countryCode}
+              onChange={(e) =>
+                setNewSeller((prev) => ({
+                  ...prev,
+                  countryCode: e.target.value,
+                }))
+              }
+            >
+              {COUNTRIES.map((country) => (
+                <option key={country.code} value={country.code}>
+                  {country.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            City
+            <input
+              value={newSeller.city}
+              onChange={(e) =>
+                setNewSeller((prev) => ({ ...prev, city: e.target.value }))
+              }
+              placeholder="Athens"
+            />
+          </label>
+          <label>
+            Email
+            <input
+              type="email"
+              value={newSeller.email}
+              onChange={(e) =>
+                setNewSeller((prev) => ({ ...prev, email: e.target.value }))
+              }
+              placeholder="hello@studio.com"
+            />
+          </label>
+          <label>
+            Short bio
+            <textarea
+              value={newSeller.bio}
+              onChange={(e) =>
+                setNewSeller((prev) => ({ ...prev, bio: e.target.value }))
+              }
+              placeholder="Handcrafted frames…"
+            />
+          </label>
+          <label>
+            Starting plan
+            <select
+              className="country-select"
+              value={newSeller.plan}
+              onChange={(e) =>
+                setNewSeller((prev) => ({
+                  ...prev,
+                  plan: e.target.value as PlanId,
+                }))
+              }
+            >
+              <option value="free">Free</option>
+              <option value="pro">Pro</option>
+            </select>
+          </label>
+          <label>
+            Banner image URL (optional)
+            <input
+              type="url"
+              value={newSeller.bannerImage}
+              onChange={(e) =>
+                setNewSeller((prev) => ({
+                  ...prev,
+                  bannerImage: e.target.value,
+                }))
+              }
+              placeholder="https://…"
+            />
+          </label>
+          <button type="submit" className="btn btn-gold">
+            Open seller page
+          </button>
+        </form>
+        {createMsg ? (
+          <p className="success" style={{ marginTop: "0.75rem" }}>
+            {createMsg}
+          </p>
+        ) : null}
+
+        <h3 className="admin-heading">Site look (all pages)</h3>
+        <div className="form" style={{ maxWidth: 560 }}>
+          <label>
+            Site accent colour
+            <span className="color-field">
+              <input
+                type="color"
+                value={globalBranding.accentColor}
+                onChange={(e) =>
+                  updateGlobalBranding({ accentColor: e.target.value })
+                }
+              />
+              <input
+                value={globalBranding.accentColor}
+                onChange={(e) =>
+                  updateGlobalBranding({ accentColor: e.target.value })
+                }
+              />
+            </span>
+          </label>
+          <label>
+            Home banner image URL
+            <input
+              type="url"
+              value={globalBranding.homeBannerImage}
+              onChange={(e) =>
+                updateGlobalBranding({ homeBannerImage: e.target.value })
+              }
+            />
+          </label>
+          <label>
+            Home headline
+            <input
+              value={globalBranding.siteTagline}
+              onChange={(e) =>
+                updateGlobalBranding({ siteTagline: e.target.value })
+              }
+            />
+          </label>
+        </div>
+
+        <h3 className="admin-heading">Seller page look</h3>
+        <label className="meta-sub">
+          Edit branding for{" "}
+          <select
+            className="country-select"
+            value={brandingSpace?.studioSlug ?? ""}
+            onChange={(e) => setBrandingSlug(e.target.value)}
+          >
+            {spaces.map((space) => (
+              <option key={space.studioSlug} value={space.studioSlug}>
+                {space.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        {brandingSpace ? (
+          <div style={{ marginTop: "1rem", maxWidth: 720 }}>
+            <BrandingForm
+              value={brandingSpace.branding}
+              onChange={(branding) =>
+                updateStudioBranding(brandingSpace.studioSlug, branding)
+              }
+              hint="Admin can change any seller’s colours and banner."
+            />
+            <p className="meta-sub" style={{ marginTop: "0.75rem" }}>
+              Public URL:{" "}
+              <Link href={`/studios/${brandingSpace.studioSlug}`}>
+                /studios/{brandingSpace.studioSlug}
+              </Link>
+            </p>
+          </div>
+        ) : null}
 
         <h3 className="admin-heading">Seller spaces</h3>
         <div className="admin-table-wrap">
@@ -138,6 +378,7 @@ export default function AdminPage() {
             <thead>
               <tr>
                 <th>Studio</th>
+                <th>URL</th>
                 <th>Plan</th>
                 <th>Access</th>
                 <th>Products</th>
@@ -147,18 +388,28 @@ export default function AdminPage() {
             </thead>
             <tbody>
               {spaces.map((space) => {
-                const studio = getStudio(space.studioSlug);
                 const used = totalProductCount(space);
                 const limit = PLANS[space.plan].productLimit;
                 return (
                   <tr key={space.id}>
                     <td>
-                      <Link href={`/studios/${space.studioSlug}`}>
-                        {studio?.name ?? space.studioSlug}
-                      </Link>
+                      <input
+                        className="admin-note"
+                        style={{ width: "12rem" }}
+                        value={space.name}
+                        onChange={(e) =>
+                          updateSpace(space.studioSlug, {
+                            name: e.target.value,
+                          })
+                        }
+                        title="Admin can rename; sellers cannot"
+                      />
                       <div className="meta-sub">
-                        {studio?.city}, {studio?.country}
+                        {space.city}, {space.country}
                       </div>
+                    </td>
+                    <td>
+                      <code>/studios/{space.studioSlug}</code>
                     </td>
                     <td>
                       <select
@@ -205,7 +456,14 @@ export default function AdminPage() {
                         }
                       />
                     </td>
-                    <td>
+                    <td className="cta-row">
+                      <button
+                        type="button"
+                        className="btn-text"
+                        onClick={() => setBrandingSlug(space.studioSlug)}
+                      >
+                        Look
+                      </button>
                       <Link
                         href={`/studios/${space.studioSlug}`}
                         className="btn-text"
@@ -291,12 +549,6 @@ export default function AdminPage() {
             </tbody>
           </table>
         </div>
-
-        <p className="meta-sub" style={{ marginTop: "1.5rem" }}>
-          Sellers redeem tokens on{" "}
-          <Link href="/seller/plans">/seller/plans</Link>. Demo seller workspace:{" "}
-          <Link href="/seller/promote">/seller/promote</Link>.
-        </p>
       </div>
     </div>
   );

@@ -4,14 +4,24 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { ContactSellerForm } from "@/components/ContactSellerForm";
-import { getFrame, getStudio } from "@/lib/data";
+import { getFrame } from "@/lib/data";
+import { useSellerAdmin } from "@/lib/seller-admin-store";
 
 function ContactContent() {
   const params = useParams<{ slug: string }>();
   const searchParams = useSearchParams();
-  const studio = getStudio(params.slug);
+  const { resolveStudio, ready } = useSellerAdmin();
+  const studio = resolveStudio(params.slug);
   const frameId = searchParams.get("frame");
   const frame = frameId ? getFrame(frameId) : undefined;
+
+  if (!ready) {
+    return (
+      <div className="section">
+        <div className="container">Loading…</div>
+      </div>
+    );
+  }
 
   if (!studio) {
     return (

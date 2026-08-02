@@ -10,7 +10,8 @@ Web app that helps people find sunglasses that fit their face — and helps desi
 - **Shop links** — `/studios/[slug]` opens that seller only
 - **Seller tools** — promote workspace, list a frame, public studio page
 - **Plans** — Free (max 6 products) and Pro (unlimited + boost)
-- **Admin** — manage seller spaces, access, and Free/Pro tokens (`/admin`)
+- **Admin** — open seller pages (name/URL), access, tokens, site + seller look (`/admin`)
+- **Branding** — admin sets site look; sellers edit their page colours/banner (`/seller/branding`)
 - **Contact seller** — message flow to help buyers purchase
 
 ## Quick start

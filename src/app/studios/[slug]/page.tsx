@@ -6,18 +6,29 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { ContactModal } from "@/components/ContactModal";
 import { FrameCard } from "@/components/FrameCard";
-import { getFramesByStudio, getStudio } from "@/lib/data";
+import { getFramesByStudio } from "@/lib/data";
 import { scoreFrameFit } from "@/lib/fit";
 import { usePreferences } from "@/lib/preferences";
+import { useSellerAdmin } from "@/lib/seller-admin-store";
 
 export default function StudioPage() {
   const params = useParams<{ slug: string }>();
-  const studio = getStudio(params.slug);
+  const { resolveStudio, getSpace, ready } = useSellerAdmin();
+  const studio = resolveStudio(params.slug);
+  const space = getSpace(params.slug);
   const studioFrames = studio ? getFramesByStudio(studio.slug) : [];
   const { fitProfile, countryCode } = usePreferences();
   const [contactOpen, setContactOpen] = useState(false);
 
-  if (!studio) {
+  if (!ready) {
+    return (
+      <div className="section">
+        <div className="container">Loading studio…</div>
+      </div>
+    );
+  }
+
+  if (!studio || !space) {
     return (
       <div className="section">
         <div className="container">
@@ -30,71 +41,95 @@ export default function StudioPage() {
     );
   }
 
+  const { branding } = space;
+
   return (
     <>
-      <section className="studio-hero">
-        <div className="hero-media">
-          <Image
-            src={studio.heroImage}
-            alt={studio.name}
-            fill
-            priority
-            sizes="100vw"
-            style={{ objectFit: "cover" }}
-          />
-          <div className="hero-scrim" />
-        </div>
-        <div className="container hero-content">
-          <p className="meta-sub" style={{ color: "var(--chalk-muted)" }}>
-            Shop link · only this studio
-          </p>
-          <h1 style={{ fontSize: "clamp(2.4rem, 6vw, 4.5rem)" }}>
-            {studio.name}
-          </h1>
-          <p>
-            {studio.bio} · {studio.city}, {studio.country}
-          </p>
-          <div className="cta-row">
-            <button
-              type="button"
-              className="btn btn-gold"
-              onClick={() => setContactOpen(true)}
-            >
-              Message studio
-            </button>
-            <Link
-              href={`/studios/${studio.slug}/contact`}
-              className="btn btn-ghost"
-              style={{ color: "#f3efe6", borderColor: "#f3efe6" }}
-            >
-              Contact to buy
-            </Link>
+      <style>{`
+        .studio-themed .btn-gold {
+          background: ${branding.accentColor};
+          color: ${branding.primaryColor};
+        }
+        .studio-themed .fit-badge,
+        .studio-themed .local-tag {
+          color: ${branding.accentColor};
+        }
+      `}</style>
+      <div className="studio-themed">
+        <section
+          className="studio-hero"
+          style={{ backgroundColor: branding.primaryColor }}
+        >
+          <div className="hero-media">
+            <Image
+              src={branding.bannerImage || studio.heroImage}
+              alt={studio.name}
+              fill
+              priority
+              sizes="100vw"
+              style={{ objectFit: "cover" }}
+            />
+            <div className="hero-scrim" />
           </div>
-        </div>
-      </section>
-
-      <div className="section">
-        <div className="container">
-          <div className="section-head">
-            <div>
-              <h2>Frames from {studio.name}</h2>
-              <p>
-                You arrived via a studio link — this page shows only their
-                collection.
-              </p>
+          <div className="container hero-content">
+            <p className="meta-sub" style={{ color: "var(--chalk-muted)" }}>
+              Shop link · only this studio
+            </p>
+            <h1 style={{ fontSize: "clamp(2.4rem, 6vw, 4.5rem)" }}>
+              {studio.name}
+            </h1>
+            <p>
+              {branding.tagline || studio.bio} · {studio.city}, {studio.country}
+            </p>
+            <div className="cta-row">
+              <button
+                type="button"
+                className="btn btn-gold"
+                onClick={() => setContactOpen(true)}
+              >
+                Message studio
+              </button>
+              <Link
+                href={`/studios/${studio.slug}/contact`}
+                className="btn btn-ghost"
+                style={{ color: "#f3efe6", borderColor: "#f3efe6" }}
+              >
+                Contact to buy
+              </Link>
             </div>
           </div>
-          <div className="grid-frames">
-            {studioFrames.map((frame) => (
-              <FrameCard
-                key={frame.id}
-                frame={frame}
-                countryCode={countryCode}
-                fitScore={
-                  fitProfile ? scoreFrameFit(frame, fitProfile) : null
-                }
-              />
-            ))}
+        </section>
+
+        <div className="section">
+          <div className="container">
+            <div className="section-head">
+              <div>
+                <h2>Frames from {studio.name}</h2>
+                <p>
+                  You arrived via a studio link — this page shows only their
+                  collection.
+                </p>
+              </div>
+            </div>
+            {studioFrames.length > 0 ? (
+              <div className="grid-frames">
+                {studioFrames.map((frame) => (
+                  <FrameCard
+                    key={frame.id}
+                    frame={frame}
+                    countryCode={countryCode}
+                    fitScore={
+                      fitProfile ? scoreFrameFit(frame, fitProfile) : null
+                    }
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="meta-sub">
+                No frames listed yet. Seller can add products from their
+                workspace.
+              </p>
+            )}
           </div>
         </div>
       </div>

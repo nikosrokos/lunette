@@ -13,6 +13,8 @@ This app is a **working web MVP** with demo data (no real payments, camera ML, o
 | Seller: studio page, promote, list a frame | Demo UI |
 | Seller plans Free / Pro (Free = max 6 products) | Demo UI |
 | Admin: spaces, access, Free/Pro tokens | Demo UI (`/admin`, PIN `lunette-admin`) |
+| Admin opens seller pages (name + URL) | Demo UI |
+| Admin/seller branding (colours, banners) | Demo UI (`/admin`, `/seller/branding`) |
 | Shop link vs local-first marketplace | Implemented |
 | Real camera face scan / payments / email | Not yet — see “Later” |
 

@@ -1,6 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
-import { getStudioForFrame } from "@/lib/data";
+import { useSellerAdmin } from "@/lib/seller-admin-store";
 import type { Frame } from "@/lib/types";
 
 interface FrameCardProps {
@@ -16,7 +18,8 @@ export function FrameCard({
   showLocal,
   countryCode,
 }: FrameCardProps) {
-  const studio = getStudioForFrame(frame);
+  const { resolveStudio } = useSellerAdmin();
+  const studio = resolveStudio(frame.studioSlug);
   const isLocal = Boolean(
     showLocal && studio && countryCode && studio.countryCode === countryCode,
   );

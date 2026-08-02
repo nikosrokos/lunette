@@ -46,6 +46,7 @@ export default function SellerPromotePage() {
           Promote
         </Link>
         <Link href="/seller/frames/new">List a frame</Link>
+        <Link href="/seller/branding">Page look</Link>
         <Link href="/seller/plans">Plans</Link>
         <Link href={`/studios/${DEMO_STUDIO.slug}`}>Public studio</Link>
         <Link href="/studios">Marketplace</Link>

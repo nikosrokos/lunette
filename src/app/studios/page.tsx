@@ -1,11 +1,14 @@
 "use client";
 
 import { StudioCard } from "@/components/StudioCard";
-import { COUNTRIES, sortStudiosLocalFirst, studios } from "@/lib/data";
+import { COUNTRIES, sortStudiosLocalFirst } from "@/lib/data";
 import { usePreferences } from "@/lib/preferences";
+import { useSellerAdmin } from "@/lib/seller-admin-store";
 
 export default function StudiosPage() {
   const { countryCode } = usePreferences();
+  const { listStudios, ready } = useSellerAdmin();
+  const studios = ready ? listStudios() : [];
   const sorted = sortStudiosLocalFirst(studios, countryCode);
   const countryName =
     COUNTRIES.find((c) => c.code === countryCode)?.name ?? countryCode;
@@ -27,7 +30,9 @@ export default function StudiosPage() {
           </div>
         </div>
 
-        {local.length > 0 ? (
+        {!ready ? <p className="meta-sub">Loading studios…</p> : null}
+
+        {ready && local.length > 0 ? (
           <>
             <h3 style={{ marginBottom: "1rem" }}>Local · {countryName}</h3>
             <div className="grid-studios">
@@ -36,11 +41,13 @@ export default function StudiosPage() {
               ))}
             </div>
           </>
-        ) : (
+        ) : null}
+
+        {ready && local.length === 0 ? (
           <div className="notice">
             No studios listed in {countryName} yet — showing worldwide sellers.
           </div>
-        )}
+        ) : null}
 
         {worldwide.length > 0 ? (
           <div style={{ marginTop: "3rem" }}>

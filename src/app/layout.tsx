@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DM_Sans, Syne } from "next/font/google";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
+import { SiteTheme } from "@/components/SiteTheme";
 import { PreferencesProvider } from "@/lib/preferences";
 import { SellerAdminProvider } from "@/lib/seller-admin-store";
 import "./globals.css";
@@ -37,6 +38,7 @@ export default function RootLayout({
       <body>
         <PreferencesProvider>
           <SellerAdminProvider>
+            <SiteTheme />
             <div className="shell">
               <SiteHeader />
               <main>{children}</main>

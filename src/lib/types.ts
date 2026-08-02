@@ -44,12 +44,40 @@ export interface Studio {
   promoted?: boolean;
 }
 
-/** Admin-managed seller workspace (plan, access, tokens). */
+export interface StudioBranding {
+  primaryColor: string;
+  accentColor: string;
+  bannerImage: string;
+  tagline: string;
+}
+
+/** Site-wide look controlled by admin. */
+export interface GlobalBranding {
+  accentColor: string;
+  homeBannerImage: string;
+  siteTagline: string;
+}
+
+/**
+ * Admin-managed seller workspace.
+ * URL (studioSlug) and name are set by admin when the page is opened.
+ * Seller may edit branding (colours, banner) for their page only.
+ */
 export interface SellerSpace {
   id: string;
+  /** Public URL segment: /studios/[studioSlug] — admin-only at creation. */
   studioSlug: string;
+  /** Display name — admin-only at creation (admin may rename later). */
+  name: string;
+  country: string;
+  countryCode: string;
+  city: string;
+  bio: string;
+  email: string;
+  replyTime: string;
   plan: PlanId;
   status: AccessStatus;
+  branding: StudioBranding;
   /** Extra products listed beyond seed catalog (demo). */
   extraProductCount: number;
   notes: string;
