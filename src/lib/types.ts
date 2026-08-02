@@ -14,6 +14,7 @@ export interface FitProfile {
   faceShape: FaceShape;
   bridge: "narrow" | "medium" | "wide";
   temples: "narrow" | "medium" | "wide";
+  faceWidth: "narrow" | "medium" | "wide";
   scannedAt: string;
 }
 

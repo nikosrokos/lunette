@@ -376,6 +376,81 @@ p {
   font-weight: 600;
 }
 
+.fit-reason {
+  margin-top: 0.3rem;
+  color: var(--ink-soft);
+  font-size: 0.86rem;
+  line-height: 1.35;
+  max-width: 28rem;
+}
+
+.fit-preview-block {
+  margin: 0.5rem 0 1rem;
+  max-width: 420px;
+}
+
+.tryon-page {
+  max-width: 720px;
+}
+
+.tryon-portrait {
+  width: min(100%, 420px);
+}
+
+.tryon-portrait.is-compact {
+  width: min(100%, 280px);
+}
+
+.tryon-portrait-stage {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  background: var(--stone-2);
+  perspective: 900px;
+}
+
+.tryon-face {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.tryon-glasses-layer {
+  position: absolute;
+  left: 50%;
+  top: 38%;
+  width: 62%;
+  transform: translate(-50%, -50%) rotateX(12deg) translateZ(24px);
+  filter: drop-shadow(0 10px 14px rgba(28, 26, 23, 0.35));
+  pointer-events: none;
+}
+
+.tryon-glasses {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.tryon-portrait-label {
+  margin-top: 0.75rem;
+}
+
+.detail-tryon-wrap {
+  padding: 1.5rem;
+  min-height: 70vh;
+  display: grid;
+  align-content: center;
+  background:
+    radial-gradient(800px 400px at 20% 0%, rgba(196, 164, 106, 0.18), transparent 55%),
+    rgba(28, 26, 23, 0.04);
+}
+
+.detail-tryon-wrap .tryon-portrait {
+  width: min(100%, 460px);
+  margin: 0 auto;
+}
+
 .local-tag {
   display: inline-block;
   margin-top: 0.35rem;

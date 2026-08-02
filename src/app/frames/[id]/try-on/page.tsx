@@ -3,8 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { TryOnPortrait } from "@/components/TryOnPortrait";
 import { frames, getFrame } from "@/lib/data";
-import { scoreFrameFit } from "@/lib/fit";
+import { assessFrameFit } from "@/lib/fit";
 import { usePreferences } from "@/lib/preferences";
 import { useSellerAdmin } from "@/lib/seller-admin-store";
 
@@ -14,7 +15,11 @@ export default function TryOnPage() {
   const frame = getFrame(params.id);
   const { resolveStudio, ready: studiosReady } = useSellerAdmin();
   const studio = frame ? resolveStudio(frame.studioSlug) : undefined;
-  const { fitProfile, ready: prefsReady } = usePreferences();
+  const {
+    fitProfile,
+    faceCapture,
+    ready: prefsReady,
+  } = usePreferences();
 
   if (!studiosReady || !prefsReady) {
     return (
@@ -43,7 +48,10 @@ export default function TryOnPage() {
             Try on needs a face scan first. Until then you can browse product
             images only.
           </p>
-          <div className="detail-media" style={{ marginTop: "1.5rem", minHeight: "auto" }}>
+          <div
+            className="detail-media"
+            style={{ marginTop: "1.5rem", minHeight: "auto" }}
+          >
             <Image
               src={frame.image}
               alt={frame.name}
@@ -71,35 +79,46 @@ export default function TryOnPage() {
   const index = frames.findIndex((item) => item.id === frame.id);
   const prev = frames[(index - 1 + frames.length) % frames.length];
   const next = frames[(index + 1) % frames.length];
-  const fitScore = scoreFrameFit(frame, fitProfile);
+  const assessment = assessFrameFit(frame, fitProfile);
 
   return (
-    <section className="tryon">
-      <div className="tryon-media">
-        <Image
-          src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=2000&q=80"
-          alt="Live try-on preview"
-          fill
-          priority
-          sizes="100vw"
-          style={{ objectFit: "cover" }}
-        />
-        <div className="hero-scrim" />
-      </div>
-      <div className="container tryon-bar">
-        <div>
-          <div className="brand" style={{ letterSpacing: "0.18em" }}>
-            Lunette
+    <div className="section">
+      <div className="container tryon-page">
+        <div className="section-head">
+          <div>
+            <h2>Try on</h2>
+            <p>
+              {frame.name} by {studio.name} · {assessment.score}% match
+            </p>
+            <p className="fit-reason" style={{ marginTop: "0.35rem" }}>
+              {assessment.reason}
+            </p>
           </div>
-          <p>
-            Live try-on · {frame.name} by {studio.name} · {fitScore}% fit
-          </p>
+          <Link href="/fit" className="btn-text">
+            Rescan face
+          </Link>
         </div>
-        <div className="cta-row">
+
+        {faceCapture ? (
+          <TryOnPortrait
+            faceCapture={faceCapture}
+            frame={frame}
+            label="Depth preview from your scan — glasses placed on your face photo"
+          />
+        ) : (
+          <div className="notice">
+            No face photo stored for this session.{" "}
+            <Link href={`/fit?next=/frames/${frame.id}/try-on`}>
+              Scan again
+            </Link>{" "}
+            to see glasses on your face.
+          </div>
+        )}
+
+        <div className="cta-row" style={{ marginTop: "1.5rem" }}>
           <button
             type="button"
             className="btn btn-ghost"
-            style={{ color: "#f3efe6", borderColor: "#f3efe6" }}
             onClick={() => router.push(`/frames/${prev.id}/try-on`)}
           >
             Previous
@@ -107,23 +126,21 @@ export default function TryOnPage() {
           <button
             type="button"
             className="btn btn-ghost"
-            style={{ color: "#f3efe6", borderColor: "#f3efe6" }}
             onClick={() => router.push(`/frames/${next.id}/try-on`)}
           >
             Next
           </button>
           <Link href={`/frames/${frame.id}`} className="btn btn-gold">
-            Save look
+            View product
           </Link>
           <Link
             href={`/studios/${studio.slug}/contact?frame=${frame.id}`}
             className="btn-text"
-            style={{ color: "#c4a46a" }}
           >
             Contact seller
           </Link>
         </div>
       </div>
-    </section>
+    </div>
   );
 }

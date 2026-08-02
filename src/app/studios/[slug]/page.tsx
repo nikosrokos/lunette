@@ -8,7 +8,7 @@ import { ContactModal } from "@/components/ContactModal";
 import { FrameCard } from "@/components/FrameCard";
 import { PromoBanner } from "@/components/PromoBanner";
 import { getFramesByStudio } from "@/lib/data";
-import { scoreFrameFit } from "@/lib/fit";
+import { assessFrameFit } from "@/lib/fit";
 import { canUsePromoBanner } from "@/lib/plans";
 import { usePreferences } from "@/lib/preferences";
 import { useSellerAdmin } from "@/lib/seller-admin-store";
@@ -126,16 +126,20 @@ export default function StudioPage() {
             </div>
             {studioFrames.length > 0 ? (
               <div className="grid-frames">
-                {studioFrames.map((frame) => (
-                  <FrameCard
-                    key={frame.id}
-                    frame={frame}
-                    countryCode={countryCode}
-                    fitScore={
-                      fitProfile ? scoreFrameFit(frame, fitProfile) : null
-                    }
-                  />
-                ))}
+                {studioFrames.map((frame) => {
+                  const assessment = fitProfile
+                    ? assessFrameFit(frame, fitProfile)
+                    : null;
+                  return (
+                    <FrameCard
+                      key={frame.id}
+                      frame={frame}
+                      countryCode={countryCode}
+                      fitScore={assessment?.score ?? null}
+                      fitReason={assessment?.reason ?? null}
+                    />
+                  );
+                })}
               </div>
             ) : (
               <p className="meta-sub">

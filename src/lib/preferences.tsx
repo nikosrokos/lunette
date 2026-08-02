@@ -11,6 +11,7 @@ import type { FitProfile } from "./types";
 
 const COUNTRY_KEY = "lunette-country";
 const FIT_KEY = "lunette-fit";
+const FACE_KEY = "lunette-face-capture";
 const CHANGE_EVENT = "lunette-preferences";
 
 interface PreferencesContextValue {
@@ -18,6 +19,8 @@ interface PreferencesContextValue {
   setCountryCode: (code: string) => void;
   fitProfile: FitProfile | null;
   setFitProfile: (profile: FitProfile | null) => void;
+  faceCapture: string | null;
+  setFaceCapture: (dataUrl: string | null) => void;
   ready: boolean;
 }
 
@@ -52,10 +55,22 @@ function getFitSnapshot(): string {
   }
 }
 
+function getFaceSnapshot(): string {
+  try {
+    return sessionStorage.getItem(FACE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
 function parseFit(raw: string): FitProfile | null {
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as FitProfile;
+    const parsed = JSON.parse(raw) as FitProfile;
+    if (!parsed.faceWidth) {
+      parsed.faceWidth = "medium";
+    }
+    return parsed;
   } catch {
     return null;
   }
@@ -72,6 +87,16 @@ function setFitProfile(profile: FitProfile | null) {
   emitChange();
 }
 
+function setFaceCapture(dataUrl: string | null) {
+  try {
+    if (dataUrl) sessionStorage.setItem(FACE_KEY, dataUrl);
+    else sessionStorage.removeItem(FACE_KEY);
+  } catch {
+    /* quota / private mode */
+  }
+  emitChange();
+}
+
 export function PreferencesProvider({ children }: { children: ReactNode }) {
   const countryCode = useSyncExternalStore(
     subscribe,
@@ -79,7 +104,9 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     () => DEFAULT_COUNTRY,
   );
   const fitRaw = useSyncExternalStore(subscribe, getFitSnapshot, () => "");
+  const faceRaw = useSyncExternalStore(subscribe, getFaceSnapshot, () => "");
   const fitProfile = parseFit(fitRaw);
+  const faceCapture = faceRaw || null;
   const ready = useSyncExternalStore(
     subscribe,
     () => true,
@@ -88,7 +115,15 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 
   return (
     <PreferencesContext.Provider
-      value={{ countryCode, setCountryCode, fitProfile, setFitProfile, ready }}
+      value={{
+        countryCode,
+        setCountryCode,
+        fitProfile,
+        setFitProfile,
+        faceCapture,
+        setFaceCapture,
+        ready,
+      }}
     >
       {children}
     </PreferencesContext.Provider>

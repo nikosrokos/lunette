@@ -8,7 +8,7 @@ import {
   getStudio,
   sortFramesLocalFirst,
 } from "@/lib/data";
-import { formatFitSummary, scoreFrameFit } from "@/lib/fit";
+import { assessFrameFit, formatFitSummary, scoreFrameFit } from "@/lib/fit";
 import { usePreferences } from "@/lib/preferences";
 import type { FrameShape, Material } from "@/lib/types";
 
@@ -120,17 +120,21 @@ export default function DiscoverPage() {
         </div>
 
         <div className="grid-frames">
-          {results.map((frame) => (
-            <FrameCard
-              key={frame.id}
-              frame={frame}
-              showLocal
-              countryCode={countryCode}
-              fitScore={
-                fitProfile ? scoreFrameFit(frame, fitProfile) : null
-              }
-            />
-          ))}
+          {results.map((frame) => {
+            const assessment = fitProfile
+              ? assessFrameFit(frame, fitProfile)
+              : null;
+            return (
+              <FrameCard
+                key={frame.id}
+                frame={frame}
+                showLocal
+                countryCode={countryCode}
+                fitScore={assessment?.score ?? null}
+                fitReason={assessment?.reason ?? null}
+              />
+            );
+          })}
         </div>
 
         {results.length === 0 ? (

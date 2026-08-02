@@ -2,8 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 
+export interface FaceCaptureResult {
+  dataUrl: string;
+  imageData: ImageData;
+}
+
 interface FaceCameraProps {
-  onCaptured: () => void;
+  onCaptured: (result: FaceCaptureResult) => void;
   busy?: boolean;
 }
 
@@ -63,7 +68,33 @@ export function FaceCamera({ onCaptured, busy }: FaceCameraProps) {
 
   function capture() {
     if (state !== "live" || busy) return;
-    onCaptured();
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) {
+      setError("Camera is not ready yet. Wait a moment and try again.");
+      return;
+    }
+
+    const canvas = document.createElement("canvas");
+    const w = video.videoWidth;
+    const h = video.videoHeight;
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      setError("Could not capture frame from camera.");
+      return;
+    }
+
+    // Mirror to match preview
+    ctx.translate(w, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, w, h);
+
+    const imageData = ctx.getImageData(0, 0, w, h);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    onCaptured({ dataUrl, imageData });
   }
 
   return (

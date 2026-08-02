@@ -1,13 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { frames, getFrame, sortFramesLocalFirst, sortStudiosLocalFirst, studios } from "./data";
 import {
+  frames,
+  getFrame,
+  sortFramesLocalFirst,
+  sortStudiosLocalFirst,
+  studios,
+} from "./data";
+import {
+  analyzeFitFromImageData,
+  assessFrameFit,
   formatFitSummary,
   scoreFrameFit,
   simulateFitScan,
 } from "./fit";
 import {
-  canUsePromoBanner,
   canUploadMore,
+  canUsePromoBanner,
   FREE_PRODUCT_LIMIT,
   productLimitForPlan,
 } from "./plans";
@@ -19,13 +27,17 @@ describe("fit scoring", () => {
     faceShape: "oval",
     bridge: "medium",
     temples: "wide",
+    faceWidth: "medium",
     scannedAt: new Date().toISOString(),
   };
 
-  it("scores matching frames highly", () => {
+  it("scores matching frames highly and explains why", () => {
     const frame = getFrame("maren-aurelia");
     expect(frame).toBeTruthy();
-    expect(scoreFrameFit(frame!, profile)).toBeGreaterThanOrEqual(80);
+    const assessment = assessFrameFit(frame!, profile);
+    expect(assessment.score).toBeGreaterThanOrEqual(75);
+    expect(assessment.reason.length).toBeGreaterThan(12);
+    expect(scoreFrameFit(frame!, profile)).toBe(assessment.score);
   });
 
   it("returns a complete simulated scan profile", () => {
@@ -33,12 +45,37 @@ describe("fit scoring", () => {
     expect(scan.faceShape).toBeTruthy();
     expect(["narrow", "medium", "wide"]).toContain(scan.bridge);
     expect(["narrow", "medium", "wide"]).toContain(scan.temples);
+    expect(["narrow", "medium", "wide"]).toContain(scan.faceWidth);
     expect(scan.scannedAt).toBeTruthy();
   });
 
   it("formats a readable fit summary", () => {
     expect(formatFitSummary(profile)).toContain("Oval face");
     expect(formatFitSummary(profile)).toContain("medium bridge");
+    expect(formatFitSummary(profile)).toContain("medium width");
+  });
+
+  it("analyzes image pixels into a fit profile", () => {
+    const width = 40;
+    const height = 48;
+    const data = new Uint8ClampedArray(width * height * 4);
+    for (let y = 8; y < 40; y++) {
+      for (let x = 10; x < 30; x++) {
+        const i = (y * width + x) * 4;
+        data[i] = 190;
+        data[i + 1] = 140;
+        data[i + 2] = 110;
+        data[i + 3] = 255;
+      }
+    }
+    const profileFromImage = analyzeFitFromImageData({
+      data,
+      width,
+      height,
+      colorSpace: "srgb",
+    } as ImageData);
+    expect(profileFromImage.faceShape).toBeTruthy();
+    expect(profileFromImage.faceWidth).toBeTruthy();
   });
 });
 

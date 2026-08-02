@@ -5,8 +5,9 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { ContactModal } from "@/components/ContactModal";
+import { TryOnPortrait } from "@/components/TryOnPortrait";
 import { getFrame } from "@/lib/data";
-import { formatFaceShape, scoreFrameFit } from "@/lib/fit";
+import { assessFrameFit, formatFaceShape } from "@/lib/fit";
 import { usePreferences } from "@/lib/preferences";
 import { useSellerAdmin } from "@/lib/seller-admin-store";
 
@@ -15,7 +16,7 @@ export default function FrameDetailPage() {
   const frame = getFrame(params.id);
   const { resolveStudio, ready } = useSellerAdmin();
   const studio = frame ? resolveStudio(frame.studioSlug) : undefined;
-  const { fitProfile } = usePreferences();
+  const { fitProfile, faceCapture } = usePreferences();
   const [contactOpen, setContactOpen] = useState(false);
 
   if (!ready) {
@@ -40,19 +41,30 @@ export default function FrameDetailPage() {
   }
 
   const hasScan = Boolean(fitProfile);
-  const fitScore = fitProfile ? scoreFrameFit(frame, fitProfile) : null;
+  const assessment =
+    fitProfile && frame ? assessFrameFit(frame, fitProfile) : null;
 
   return (
     <>
       <div className="split">
         <div className="detail-media">
-          <Image
-            src={frame.image}
-            alt={frame.name}
-            width={1400}
-            height={1600}
-            priority
-          />
+          {hasScan && faceCapture ? (
+            <div className="detail-tryon-wrap">
+              <TryOnPortrait
+                faceCapture={faceCapture}
+                frame={frame}
+                label="On your face"
+              />
+            </div>
+          ) : (
+            <Image
+              src={frame.image}
+              alt={frame.name}
+              width={1400}
+              height={1600}
+              priority
+            />
+          )}
         </div>
         <div className="container detail-panel">
           <p className="meta-sub">
@@ -63,8 +75,13 @@ export default function FrameDetailPage() {
           <p style={{ marginTop: "1rem", fontWeight: 600 }}>
             {frame.currency} {frame.price}
           </p>
-          {fitScore !== null ? (
-            <p className="fit-badge">{fitScore}% match for your face</p>
+          {assessment ? (
+            <>
+              <p className="fit-badge">{assessment.score}% match for your face</p>
+              <p className="fit-reason" style={{ marginTop: "0.35rem" }}>
+                {assessment.reason}
+              </p>
+            </>
           ) : (
             <div className="notice" style={{ marginTop: "1rem" }}>
               Product images are available now. To use <strong>Try on</strong>,

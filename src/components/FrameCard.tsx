@@ -8,6 +8,7 @@ import type { Frame } from "@/lib/types";
 interface FrameCardProps {
   frame: Frame;
   fitScore?: number | null;
+  fitReason?: string | null;
   showLocal?: boolean;
   countryCode?: string;
 }
@@ -15,6 +16,7 @@ interface FrameCardProps {
 export function FrameCard({
   frame,
   fitScore,
+  fitReason,
   showLocal,
   countryCode,
 }: FrameCardProps) {
@@ -39,6 +41,7 @@ export function FrameCard({
       {typeof fitScore === "number" ? (
         <div className="fit-badge">{fitScore}% match</div>
       ) : null}
+      {fitReason ? <p className="fit-reason">{fitReason}</p> : null}
       {isLocal ? <div className="local-tag">Local</div> : null}
     </Link>
   );
