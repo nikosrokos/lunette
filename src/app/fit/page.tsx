@@ -1,21 +1,27 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { simulateFitScan } from "@/lib/fit";
 import { usePreferences } from "@/lib/preferences";
 
-export default function FitScanPage() {
+function FitScanContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setFitProfile } = usePreferences();
   const [scanning, setScanning] = useState(false);
+  const next = searchParams.get("next");
 
   function startScan() {
     setScanning(true);
     window.setTimeout(() => {
       const profile = simulateFitScan();
       setFitProfile(profile);
-      router.push("/fit/results");
+      if (next && next.startsWith("/")) {
+        router.push(next);
+      } else {
+        router.push("/fit/results");
+      }
     }, 2200);
   }
 
@@ -25,6 +31,7 @@ export default function FitScanPage() {
         <h2>Face fit</h2>
         <p className="lede" style={{ margin: "0.75rem auto 0" }}>
           Hold still — we map brow, cheek, and temple width.
+          {next ? " After scanning you can try frames on." : ""}
         </p>
         <div className="face-guide" aria-hidden="true" />
         <p className="meta-sub" style={{ marginBottom: "1.25rem" }}>
@@ -42,5 +49,19 @@ export default function FitScanPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function FitScanPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="scan-stage">
+          <div className="container scan-card">Loading…</div>
+        </div>
+      }
+    >
+      <FitScanContent />
+    </Suspense>
   );
 }

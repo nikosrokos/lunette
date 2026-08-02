@@ -6,8 +6,10 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { ContactModal } from "@/components/ContactModal";
 import { FrameCard } from "@/components/FrameCard";
+import { PromoBanner } from "@/components/PromoBanner";
 import { getFramesByStudio } from "@/lib/data";
 import { scoreFrameFit } from "@/lib/fit";
+import { canUsePromoBanner } from "@/lib/plans";
 import { usePreferences } from "@/lib/preferences";
 import { useSellerAdmin } from "@/lib/seller-admin-store";
 
@@ -41,7 +43,8 @@ export default function StudioPage() {
     );
   }
 
-  const { branding } = space;
+  const { branding, promo, plan } = space;
+  const showPromo = canUsePromoBanner(plan) && promo.enabled;
 
   return (
     <>
@@ -99,6 +102,16 @@ export default function StudioPage() {
             </div>
           </div>
         </section>
+
+        {showPromo ? (
+          <div className="container" style={{ paddingTop: "1.5rem" }}>
+            <PromoBanner
+              promo={promo}
+              studioSlug={studio.slug}
+              accentColor={branding.accentColor}
+            />
+          </div>
+        ) : null}
 
         <div className="section">
           <div className="container">

@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { AdminPanel } from "@/components/AdminPanel";
 import { BrandingForm } from "@/components/BrandingForm";
+import { PromoForm } from "@/components/PromoForm";
 import { slugifyName } from "@/lib/branding";
 import { COUNTRIES } from "@/lib/data";
-import { FREE_PRODUCT_LIMIT, PLANS } from "@/lib/plans";
+import { FREE_PRODUCT_LIMIT, PLANS, canUsePromoBanner } from "@/lib/plans";
 import {
   DEMO_ADMIN_PIN,
   totalProductCount,
@@ -34,6 +35,7 @@ export default function AdminPage() {
     logoutAdmin,
     updateSpace,
     updateStudioBranding,
+    updateStudioPromo,
     updateGlobalBranding,
     createSellerSpace,
     createToken,
@@ -534,7 +536,7 @@ export default function AdminPage() {
           <AdminPanel
             id="seller-look"
             title="Seller page look"
-            summary="Colours & banners per studio"
+            summary="Colours, banners & Pro promos"
             open={openPanel === "seller-look"}
             onToggle={togglePanel}
           >
@@ -561,6 +563,22 @@ export default function AdminPage() {
                   }
                   hint="Admin can change any seller’s colours and banner."
                 />
+                <div style={{ marginTop: "1.5rem" }}>
+                  <PromoForm
+                    value={brandingSpace.promo}
+                    locked={!canUsePromoBanner(brandingSpace.plan)}
+                    onChange={(promo) => {
+                      if (!canUsePromoBanner(brandingSpace.plan)) return;
+                      updateStudioPromo(brandingSpace.studioSlug, promo);
+                    }}
+                  />
+                  {!canUsePromoBanner(brandingSpace.plan) ? (
+                    <p className="meta-sub">
+                      Switch this seller to Pro in Manage sellers to enable
+                      promo banners.
+                    </p>
+                  ) : null}
+                </div>
                 <p className="meta-sub" style={{ marginTop: "0.75rem" }}>
                   Public URL:{" "}
                   <Link href={`/studios/${brandingSpace.studioSlug}`}>

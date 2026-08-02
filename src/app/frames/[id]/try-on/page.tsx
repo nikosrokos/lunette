@@ -3,16 +3,26 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { frames, getFrame, getStudio } from "@/lib/data";
+import { frames, getFrame } from "@/lib/data";
 import { scoreFrameFit } from "@/lib/fit";
 import { usePreferences } from "@/lib/preferences";
+import { useSellerAdmin } from "@/lib/seller-admin-store";
 
 export default function TryOnPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const frame = getFrame(params.id);
-  const studio = frame ? getStudio(frame.studioSlug) : undefined;
-  const { fitProfile } = usePreferences();
+  const { resolveStudio, ready: studiosReady } = useSellerAdmin();
+  const studio = frame ? resolveStudio(frame.studioSlug) : undefined;
+  const { fitProfile, ready: prefsReady } = usePreferences();
+
+  if (!studiosReady || !prefsReady) {
+    return (
+      <div className="section">
+        <div className="container">Loading…</div>
+      </div>
+    );
+  }
 
   if (!frame || !studio) {
     return (
@@ -24,10 +34,44 @@ export default function TryOnPage() {
     );
   }
 
+  if (!fitProfile) {
+    return (
+      <div className="section">
+        <div className="container" style={{ maxWidth: 560 }}>
+          <h2>Scan required</h2>
+          <p className="lede" style={{ marginTop: "0.75rem" }}>
+            Try on needs a face scan first. Until then you can browse product
+            images only.
+          </p>
+          <div className="detail-media" style={{ marginTop: "1.5rem", minHeight: "auto" }}>
+            <Image
+              src={frame.image}
+              alt={frame.name}
+              width={900}
+              height={1100}
+              style={{ width: "100%", height: "auto" }}
+            />
+          </div>
+          <div className="cta-row" style={{ marginTop: "1.25rem" }}>
+            <Link
+              href={`/fit?next=/frames/${frame.id}/try-on`}
+              className="btn btn-gold"
+            >
+              Scan my face
+            </Link>
+            <Link href={`/frames/${frame.id}`} className="btn btn-ghost">
+              Back to product images
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const index = frames.findIndex((item) => item.id === frame.id);
   const prev = frames[(index - 1 + frames.length) % frames.length];
   const next = frames[(index + 1) % frames.length];
-  const fitScore = fitProfile ? scoreFrameFit(frame, fitProfile) : null;
+  const fitScore = scoreFrameFit(frame, fitProfile);
 
   return (
     <section className="tryon">
@@ -48,8 +92,7 @@ export default function TryOnPage() {
             Lunette
           </div>
           <p>
-            Live try-on · {frame.name} by {studio.name}
-            {fitScore !== null ? ` · ${fitScore}% fit` : " · Scan to see fit"}
+            Live try-on · {frame.name} by {studio.name} · {fitScore}% fit
           </p>
         </div>
         <div className="cta-row">

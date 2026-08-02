@@ -9,6 +9,8 @@ import {
 import {
   DEFAULT_GLOBAL_BRANDING,
   DEFAULT_STUDIO_BRANDING,
+  DEFAULT_STUDIO_PROMO,
+  defaultPromoForStudio,
   isValidSlug,
   slugifyName,
 } from "./branding";
@@ -22,9 +24,10 @@ import type {
   SellerSpace,
   Studio,
   StudioBranding,
+  StudioPromo,
 } from "./types";
 
-const SPACES_KEY = "lunette-seller-spaces-v2";
+const SPACES_KEY = "lunette-seller-spaces-v3";
 const TOKENS_KEY = "lunette-access-tokens";
 const GLOBAL_KEY = "lunette-global-branding";
 const ADMIN_KEY = "lunette-admin-session";
@@ -64,6 +67,7 @@ function spaceFromCatalog(studio: Studio, plan: PlanId): SellerSpace {
       bannerImage: studio.heroImage,
       tagline: studio.bio,
     },
+    promo: defaultPromoForStudio(studio.name, plan === "pro"),
     extraProductCount: 0,
     notes: "",
     updatedAt: new Date().toISOString(),
@@ -131,18 +135,26 @@ function normalizeSpace(raw: Partial<SellerSpace> & { studioSlug: string }): Sel
         plan: raw.plan ?? "free",
         status: raw.status ?? "active",
         branding: { ...DEFAULT_STUDIO_BRANDING },
+        promo: { ...DEFAULT_STUDIO_PROMO },
         extraProductCount: 0,
         notes: "",
         updatedAt: new Date().toISOString(),
       };
 
+  const plan = raw.plan ?? base.plan;
   return {
     ...base,
     ...raw,
+    plan,
     branding: {
       ...DEFAULT_STUDIO_BRANDING,
       ...base.branding,
       ...raw.branding,
+    },
+    promo: {
+      ...DEFAULT_STUDIO_PROMO,
+      ...base.promo,
+      ...raw.promo,
     },
     updatedAt: raw.updatedAt ?? base.updatedAt,
   };
@@ -268,6 +280,10 @@ interface SellerAdminContextValue {
     studioSlug: string,
     branding: Partial<StudioBranding>,
   ) => void;
+  updateStudioPromo: (
+    studioSlug: string,
+    promo: Partial<StudioPromo>,
+  ) => void;
   updateGlobalBranding: (branding: Partial<GlobalBranding>) => void;
   createSellerSpace: (
     input: CreateSellerInput,
@@ -390,6 +406,19 @@ export function SellerAdminProvider({ children }: { children: ReactNode }) {
         ),
       );
     },
+    updateStudioPromo(studioSlug, promo) {
+      writeSpaces(
+        spaces.map((space) =>
+          space.studioSlug === studioSlug
+            ? {
+                ...space,
+                promo: { ...space.promo, ...promo },
+                updatedAt: new Date().toISOString(),
+              }
+            : space,
+        ),
+      );
+    },
     updateGlobalBranding(branding) {
       writeGlobal({ ...globalBranding, ...branding });
     },
@@ -427,6 +456,7 @@ export function SellerAdminProvider({ children }: { children: ReactNode }) {
             input.bannerImage?.trim() || DEFAULT_STUDIO_BRANDING.bannerImage,
           tagline: input.bio.trim() || `${name} on LUNETTE.`,
         },
+        promo: defaultPromoForStudio(name, input.plan === "pro"),
         extraProductCount: 0,
         notes: "Opened by admin",
         updatedAt: new Date().toISOString(),

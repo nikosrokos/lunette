@@ -17,6 +17,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     missing: [
       "Unlimited products",
       "Fit Match boost",
+      "Promo banners (messages, logos)",
       "Featured promote slots",
       "Priority in local results",
     ],
@@ -30,6 +31,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
       "Everything in Free",
       "Unlimited products",
       "Fit Match boost",
+      "Promo banners with messages & logos",
       "Featured promote slots",
       "Priority in local results",
       "Seller analytics (soon)",
@@ -53,5 +55,9 @@ export function canUseFitMatchBoost(plan: PlanId): boolean {
 }
 
 export function canFeaturePromote(plan: PlanId): boolean {
+  return plan === "pro";
+}
+
+export function canUsePromoBanner(plan: PlanId): boolean {
   return plan === "pro";
 }

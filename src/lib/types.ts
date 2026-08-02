@@ -51,6 +51,16 @@ export interface StudioBranding {
   tagline: string;
 }
 
+/** Pro-only promotional strip on the seller studio page. */
+export interface StudioPromo {
+  enabled: boolean;
+  headline: string;
+  message: string;
+  logoUrl: string;
+  ctaLabel: string;
+  ctaUrl: string;
+}
+
 /** Site-wide look controlled by admin. */
 export interface GlobalBranding {
   accentColor: string;
@@ -78,6 +88,8 @@ export interface SellerSpace {
   plan: PlanId;
   status: AccessStatus;
   branding: StudioBranding;
+  /** Pro-only promotions / messages / logo strip. */
+  promo: StudioPromo;
   /** Extra products listed beyond seed catalog (demo). */
   extraProductCount: number;
   notes: string;

@@ -39,6 +39,7 @@ export default function FrameDetailPage() {
     );
   }
 
+  const hasScan = Boolean(fitProfile);
   const fitScore = fitProfile ? scoreFrameFit(frame, fitProfile) : null;
 
   return (
@@ -65,9 +66,13 @@ export default function FrameDetailPage() {
           {fitScore !== null ? (
             <p className="fit-badge">{fitScore}% match for your face</p>
           ) : (
-            <p className="meta-sub" style={{ marginTop: "0.5rem" }}>
-              <Link href="/fit">Scan to see fit</Link>
-            </p>
+            <div className="notice" style={{ marginTop: "1rem" }}>
+              Product images are available now. To use <strong>Try on</strong>,
+              scan your face first.{" "}
+              <Link href={`/fit?next=/frames/${frame.id}/try-on`}>
+                Scan my face
+              </Link>
+            </div>
           )}
 
           <ul className="spec-list">
@@ -124,9 +129,21 @@ export default function FrameDetailPage() {
           </div>
 
           <div className="cta-row">
-            <Link href={`/frames/${frame.id}/try-on`} className="btn btn-primary">
-              Try on
-            </Link>
+            {hasScan ? (
+              <Link
+                href={`/frames/${frame.id}/try-on`}
+                className="btn btn-primary"
+              >
+                Try on
+              </Link>
+            ) : (
+              <Link
+                href={`/fit?next=/frames/${frame.id}/try-on`}
+                className="btn btn-primary"
+              >
+                Scan face to try on
+              </Link>
+            )}
             <Link href="/discover" className="btn-text">
               Back to discover
             </Link>
