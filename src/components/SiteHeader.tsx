@@ -26,13 +26,29 @@ function SellerLoginIcon() {
 
 export function SiteHeader() {
   const pathname = usePathname();
-  const { countryCode, setCountryCode } = usePreferences();
+  const {
+    countryCode,
+    countrySource,
+    countryDetecting,
+    setCountryCode,
+  } = usePreferences();
 
   const linkClass = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`) ? "active" : undefined;
 
   const sellerActive =
     pathname.startsWith("/seller") ? "active" : undefined;
+
+  const locationHint =
+    countrySource === "gps"
+      ? "From your location"
+      : countrySource === "ip"
+        ? "From your network"
+        : countrySource === "locale"
+          ? "From browser language"
+          : countryDetecting
+            ? "Detecting location…"
+            : "Your country";
 
   return (
     <header className="site-header">
@@ -52,17 +68,19 @@ export function SiteHeader() {
           </Link>
         </nav>
         <div className="nav-meta">
-          <label>
+          <label title={locationHint}>
             <span className="visually-hidden">Country</span>
             <select
               className="country-select"
               value={countryCode}
               onChange={(e) => setCountryCode(e.target.value)}
-              aria-label="Your country"
+              aria-label={locationHint}
             >
               {COUNTRIES.map((country) => (
                 <option key={country.code} value={country.code}>
-                  {country.name}
+                  {countryDetecting && country.code === countryCode
+                    ? `${country.name}…`
+                    : country.name}
                 </option>
               ))}
             </select>

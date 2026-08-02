@@ -24,8 +24,8 @@ export default function StudiosPage() {
           <div>
             <h2>Studios near you</h2>
             <p>
-              Showing sellers in {countryName} first. Change country in the
-              header anytime.
+              Showing sellers in {countryName} first (from your location). You
+              can override the country in the header anytime.
             </p>
           </div>
         </div>

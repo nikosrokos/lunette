@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { ContactModal } from "@/components/ContactModal";
-import { TryOnPortrait } from "@/components/TryOnPortrait";
 import { getFrame } from "@/lib/data";
 import { assessFrameFit, formatFaceShape } from "@/lib/fit";
 import { usePreferences } from "@/lib/preferences";
@@ -16,7 +15,7 @@ export default function FrameDetailPage() {
   const frame = getFrame(params.id);
   const { resolveStudio, ready } = useSellerAdmin();
   const studio = frame ? resolveStudio(frame.studioSlug) : undefined;
-  const { fitProfile, faceCapture, faceAnchor } = usePreferences();
+  const { fitProfile } = usePreferences();
   const [contactOpen, setContactOpen] = useState(false);
 
   if (!ready) {
@@ -40,7 +39,6 @@ export default function FrameDetailPage() {
     );
   }
 
-  const hasScan = Boolean(fitProfile);
   const assessment =
     fitProfile && frame ? assessFrameFit(frame, fitProfile) : null;
 
@@ -48,24 +46,13 @@ export default function FrameDetailPage() {
     <>
       <div className="split">
         <div className="detail-media">
-          {hasScan && faceCapture ? (
-            <div className="detail-tryon-wrap">
-              <TryOnPortrait
-                faceCapture={faceCapture}
-                frame={frame}
-                faceAnchor={faceAnchor}
-                label="On your face · real product frame"
-              />
-            </div>
-          ) : (
-            <Image
-              src={frame.image}
-              alt={frame.name}
-              width={1400}
-              height={1600}
-              priority
-            />
-          )}
+          <Image
+            src={frame.image}
+            alt={frame.name}
+            width={1400}
+            height={1600}
+            priority
+          />
         </div>
         <div className="container detail-panel">
           <p className="meta-sub">
@@ -85,11 +72,11 @@ export default function FrameDetailPage() {
             </>
           ) : (
             <div className="notice" style={{ marginTop: "1rem" }}>
-              Product images are available now. To use <strong>Try on</strong>,
-              scan your face first.{" "}
-              <Link href={`/fit?next=/frames/${frame.id}/try-on`}>
-                Scan my face
-              </Link>
+              Optional:{" "}
+              <Link href={`/fit?next=/frames/${frame.id}`}>
+                scan your face
+              </Link>{" "}
+              for fit % match. Or try on online with your camera now.
             </div>
           )}
 
@@ -147,21 +134,12 @@ export default function FrameDetailPage() {
           </div>
 
           <div className="cta-row">
-            {hasScan ? (
-              <Link
-                href={`/frames/${frame.id}/try-on`}
-                className="btn btn-primary"
-              >
-                Try on
-              </Link>
-            ) : (
-              <Link
-                href={`/fit?next=/frames/${frame.id}/try-on`}
-                className="btn btn-primary"
-              >
-                Scan face to try on
-              </Link>
-            )}
+            <Link
+              href={`/frames/${frame.id}/try-on`}
+              className="btn btn-primary"
+            >
+              Try on online
+            </Link>
             <Link href="/discover" className="btn-text">
               Back to discover
             </Link>

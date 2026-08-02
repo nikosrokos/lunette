@@ -90,7 +90,7 @@ export default function FitResultsPage() {
                 href={`/frames/${top.frame.id}/try-on`}
                 className="btn btn-gold"
               >
-                Try more frames on your face
+                Try on online (live mirror)
               </Link>
               <Link href={`/frames/${top.frame.id}`} className="btn btn-ghost">
                 View top match
