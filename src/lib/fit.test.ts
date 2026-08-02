@@ -128,5 +128,7 @@ describe("face anchor fallback", () => {
     expect(anchor.cy).toBeGreaterThan(0.35);
     expect(anchor.cy).toBeLessThan(0.55);
     expect(anchor.width).toBeGreaterThan(0.4);
+    expect(anchor.eyeSpan).toBeGreaterThan(0);
+    expect(anchor.faceWidth).toBeGreaterThan(anchor.eyeSpan);
   });
 });

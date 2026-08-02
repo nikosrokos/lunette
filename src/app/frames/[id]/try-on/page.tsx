@@ -105,7 +105,7 @@ export default function TryOnPage() {
             faceCapture={faceCapture}
             frame={frame}
             faceAnchor={faceAnchor}
-            label="Real product frame aligned to your eye landmarks"
+            label="Cut-out of the real product (colour, lenses, shape) sized to your face"
           />
         ) : (
           <div className="notice">

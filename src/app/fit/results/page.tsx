@@ -83,7 +83,7 @@ export default function FitResultsPage() {
               faceCapture={faceCapture}
               frame={top.frame}
               faceAnchor={faceAnchor}
-              label={`Preview · ${top.frame.name} · ${top.score}% — ${top.reason}`}
+              label={`Real ${top.frame.name} on your face · ${top.score}% — ${top.reason}`}
             />
             <div className="cta-row" style={{ marginTop: "1rem" }}>
               <Link

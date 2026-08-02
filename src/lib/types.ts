@@ -22,8 +22,13 @@ export interface FitProfile {
 export interface FaceAnchor {
   cx: number;
   cy: number;
+  /** Glasses width as fraction of image width */
   width: number;
   rotation: number;
+  /** Outer-eye span as fraction of image width (for debugging/scaling) */
+  eyeSpan: number;
+  /** Cheek-to-cheek span as fraction of image width */
+  faceWidth: number;
 }
 
 export type PlanId = "free" | "pro";

@@ -1,4 +1,4 @@
-import type { FaceAnchor } from "./types";
+import type { FaceAnchor, Frame } from "./types";
 
 /** MediaPipe landmark indices for glasses placement. */
 const LEFT_OUTER = 33;
@@ -7,6 +7,8 @@ const RIGHT_OUTER = 263;
 const RIGHT_INNER = 362;
 const LEFT_IRIS = 468;
 const RIGHT_IRIS = 473;
+const LEFT_CHEEK = 234;
+const RIGHT_CHEEK = 454;
 
 type FaceLandmarkerType = {
   detect: (image: HTMLImageElement | HTMLCanvasElement) => {
@@ -54,58 +56,90 @@ export function preloadFaceLandmarker() {
   void getFaceLandmarker();
 }
 
+function dist(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
 function anchorFromLandmarks(
   points: Array<{ x: number; y: number; z: number }>,
 ): FaceAnchor | null {
-  if (points.length < 264) return null;
+  if (points.length < 455) return null;
 
   const leftOuter = points[LEFT_OUTER];
   const leftInner = points[LEFT_INNER];
   const rightOuter = points[RIGHT_OUTER];
   const rightInner = points[RIGHT_INNER];
+  const leftCheek = points[LEFT_CHEEK];
+  const rightCheek = points[RIGHT_CHEEK];
   if (!leftOuter || !rightOuter || !leftInner || !rightInner) return null;
 
-  const leftCenter =
-    points[LEFT_IRIS] ??
-    ({
-      x: (leftOuter.x + leftInner.x) / 2,
-      y: (leftOuter.y + leftInner.y) / 2,
-    } as { x: number; y: number });
-  const rightCenter =
-    points[RIGHT_IRIS] ??
-    ({
-      x: (rightOuter.x + rightInner.x) / 2,
-      y: (rightOuter.y + rightInner.y) / 2,
-    } as { x: number; y: number });
+  const leftCenter = points[LEFT_IRIS] ?? {
+    x: (leftOuter.x + leftInner.x) / 2,
+    y: (leftOuter.y + leftInner.y) / 2,
+  };
+  const rightCenter = points[RIGHT_IRIS] ?? {
+    x: (rightOuter.x + rightInner.x) / 2,
+    y: (rightOuter.y + rightInner.y) / 2,
+  };
 
-  // MediaPipe: x increases left→right on the image. After our mirrored capture,
-  // landmarks still match the image pixels we pass in.
   const cx = (leftCenter.x + rightCenter.x) / 2;
   const cy = (leftCenter.y + rightCenter.y) / 2;
   const dx = rightOuter.x - leftOuter.x;
   const dy = rightOuter.y - leftOuter.y;
   const eyeSpan = Math.hypot(dx, dy);
-  // Full frame width ≈ outer eye corners + temples
-  const width = Math.min(0.92, Math.max(0.34, eyeSpan * 1.55));
+  const faceWidth =
+    leftCheek && rightCheek ? dist(leftCheek, rightCheek) : eyeSpan * 1.65;
+
+  // Frame should cover outer eye corners and a bit of temple; clamp to face.
+  const width = Math.min(
+    faceWidth * 0.98,
+    Math.max(eyeSpan * 1.28, faceWidth * 0.72),
+  );
   const rotation = (Math.atan2(dy, dx) * 180) / Math.PI;
 
   return {
     cx,
-    cy: cy + eyeSpan * 0.05,
+    // Sit slightly on the lower eyelid / bridge for natural rest position.
+    cy: cy + eyeSpan * 0.08,
     width,
     rotation,
+    eyeSpan,
+    faceWidth,
   };
 }
 
 export function fallbackFaceAnchor(): FaceAnchor {
-  // Matches the on-screen face guide: oval inset ~8% top / 14% sides,
-  // eyes roughly 42% down the oval.
   return {
     cx: 0.5,
     cy: 0.08 + 0.84 * 0.42,
-    width: 0.52,
+    width: 0.5,
     rotation: 0,
+    eyeSpan: 0.34,
+    faceWidth: 0.55,
   };
+}
+
+/** Scale stored anchor using the product's real millimetre frame width. */
+export function scaleAnchorForFrame(
+  anchor: FaceAnchor,
+  frame: Frame,
+): FaceAnchor {
+  const eyeSpan = anchor.eyeSpan || anchor.width * 0.65;
+  const faceWidth = anchor.faceWidth || Math.max(anchor.width, eyeSpan * 1.55);
+  // Average adult bizygomatic width ~140mm; map product frameWidth to face.
+  const faceMm = 140;
+  const ratio = frame.frameWidth / faceMm;
+  const width = Math.min(
+    faceWidth * 1.02,
+    Math.max(
+      eyeSpan * 1.22,
+      faceWidth * Math.min(Math.max(ratio, 0.78), 1.08),
+    ),
+  );
+  return { ...anchor, eyeSpan, faceWidth, width };
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -138,72 +172,7 @@ export async function detectFaceAnchor(
   }
 }
 
-/**
- * Cut near-white / studio backgrounds from a product photo so the frame
- * can sit on the face more cleanly.
- */
-export async function prepareFrameOverlay(
-  imageUrl: string,
-): Promise<string> {
-  const img = await loadImage(imageUrl);
-  const canvas = document.createElement("canvas");
-  canvas.width = img.naturalWidth || img.width;
-  canvas.height = img.naturalHeight || img.height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return imageUrl;
-
-  ctx.drawImage(img, 0, 0);
-  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const { data } = pixels;
-
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    const luma = 0.299 * r + 0.587 * g + 0.114 * b;
-    const nearWhite = luma > 210 && max - min < 40;
-    const nearGrayStudio = luma > 185 && max - min < 18;
-    if (nearWhite || nearGrayStudio) {
-      data[i + 3] = 0;
-    }
-  }
-
-  ctx.putImageData(pixels, 0, 0);
-
-  // Crop to visible glasses pixels so object-fit sizing is accurate.
-  let minX = canvas.width;
-  let minY = canvas.height;
-  let maxX = 0;
-  let maxY = 0;
-  for (let y = 0; y < canvas.height; y++) {
-    for (let x = 0; x < canvas.width; x++) {
-      const a = data[(y * canvas.width + x) * 4 + 3];
-      if (a < 20) continue;
-      if (x < minX) minX = x;
-      if (y < minY) minY = y;
-      if (x > maxX) maxX = x;
-      if (y > maxY) maxY = y;
-    }
-  }
-
-  if (maxX <= minX || maxY <= minY) {
-    return canvas.toDataURL("image/png");
-  }
-
-  const pad = Math.round(Math.max(canvas.width, canvas.height) * 0.02);
-  minX = Math.max(0, minX - pad);
-  minY = Math.max(0, minY - pad);
-  maxX = Math.min(canvas.width - 1, maxX + pad);
-  maxY = Math.min(canvas.height - 1, maxY + pad);
-  const cropW = maxX - minX + 1;
-  const cropH = maxY - minY + 1;
-  const cropped = document.createElement("canvas");
-  cropped.width = cropW;
-  cropped.height = cropH;
-  const cropCtx = cropped.getContext("2d");
-  if (!cropCtx) return canvas.toDataURL("image/png");
-  cropCtx.drawImage(canvas, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
-  return cropped.toDataURL("image/png");
+/** Same-origin cutout URL so try-on uses real glasses without backdrop. */
+export function frameCutoutUrl(imageUrl: string) {
+  return `/api/frame-cutout?src=${encodeURIComponent(imageUrl)}`;
 }

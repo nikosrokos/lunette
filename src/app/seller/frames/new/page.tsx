@@ -107,12 +107,12 @@ export default function NewFramePage() {
               <input name="studio" required defaultValue={DEMO_STUDIO.name} />
             </label>
             <label>
-              Photo URL
+              Photo URL (plain background packshot works best for try-on)
               <input
                 name="image"
                 type="url"
                 placeholder="https://…"
-                defaultValue="https://images.unsplash.com/photo-1577803645773-f96470509666?auto=format&fit=crop&w=1200&q=80"
+                defaultValue="https://images.unsplash.com/photo-1572635196237-14b3f281503f?auto=format&fit=crop&w=1200&q=80"
               />
             </label>
             <label>

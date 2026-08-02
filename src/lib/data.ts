@@ -100,7 +100,7 @@ export const frames: Frame[] = [
     price: 220,
     currency: "EUR",
     image:
-      "https://images.unsplash.com/photo-1577803645773-f96470509666?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1572635196237-14b3f281503f?auto=format&fit=crop&w=1200&q=80",
     description: "Soft round acetate with a medium bridge for everyday light.",
     lensWidth: 49,
     bridge: 20,
