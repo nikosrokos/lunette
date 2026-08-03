@@ -137,6 +137,7 @@ export default function StudioPage() {
                       countryCode={countryCode}
                       fitScore={assessment?.score ?? null}
                       fitReason={assessment?.reason ?? null}
+                      fitDetail={assessment?.detail ?? null}
                     />
                   );
                 })}

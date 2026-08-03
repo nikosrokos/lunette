@@ -1,7 +1,7 @@
 import type { Frame } from "./types";
 import { MEAN_OUTER_EYE_MM, MEAN_PD_MM } from "./glasses-geometry";
 import {
-  FACE_LANDMARKER_MODEL,
+  FACE_LANDMARKER_MODEL_CANDIDATES,
   MEDIAPIPE_WASM_CANDIDATES,
 } from "./mediapipe";
 
@@ -52,26 +52,28 @@ async function createVideoLandmarker(): Promise<VideoLandmarker | null> {
     const vision = await import("@mediapipe/tasks-vision");
 
     for (const wasmPath of MEDIAPIPE_WASM_CANDIDATES) {
-      try {
-        const fileset =
-          await vision.FilesetResolver.forVisionTasks(wasmPath);
-        const landmarker = await vision.FaceLandmarker.createFromOptions(
-          fileset,
-          {
-            baseOptions: {
-              modelAssetPath: FACE_LANDMARKER_MODEL,
-              delegate: "CPU",
+      for (const modelPath of FACE_LANDMARKER_MODEL_CANDIDATES) {
+        try {
+          const fileset =
+            await vision.FilesetResolver.forVisionTasks(wasmPath);
+          const landmarker = await vision.FaceLandmarker.createFromOptions(
+            fileset,
+            {
+              baseOptions: {
+                modelAssetPath: modelPath,
+                delegate: "CPU",
+              },
+              runningMode: "VIDEO",
+              numFaces: 1,
             },
-            runningMode: "VIDEO",
-            numFaces: 1,
-          },
-        );
-        lastLoadError = null;
-        return landmarker as VideoLandmarker;
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : String(error);
-        errors.push(`${wasmPath}: ${message}`);
+          );
+          lastLoadError = null;
+          return landmarker as VideoLandmarker;
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          errors.push(`${wasmPath} + ${modelPath}: ${message}`);
+        }
       }
     }
   } catch (error) {
@@ -80,7 +82,7 @@ async function createVideoLandmarker(): Promise<VideoLandmarker | null> {
     );
   }
 
-  lastLoadError = errors.join(" | ") || "Unknown landmarker error";
+  lastLoadError = errors.slice(0, 3).join(" | ") || "Unknown landmarker error";
   console.error("Video face landmarker failed", lastLoadError);
   videoLandmarkerPromise = null;
   return null;

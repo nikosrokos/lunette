@@ -2,7 +2,7 @@ import type { FaceAnchor, FacePoint3, Frame } from "./types";
 import { dist2, mid, type Vec3 } from "./vec3";
 import { MEAN_OUTER_EYE_MM, MEAN_PD_MM } from "./glasses-geometry";
 import {
-  FACE_LANDMARKER_MODEL,
+  FACE_LANDMARKER_MODEL_CANDIDATES,
   MEDIAPIPE_WASM_CANDIDATES,
 } from "./mediapipe";
 
@@ -39,27 +39,29 @@ async function getFaceLandmarker(): Promise<FaceLandmarkerType | null> {
       try {
         const vision = await import("@mediapipe/tasks-vision");
         for (const wasmPath of MEDIAPIPE_WASM_CANDIDATES) {
-          try {
-            const fileset =
-              await vision.FilesetResolver.forVisionTasks(wasmPath);
-            const landmarker = await vision.FaceLandmarker.createFromOptions(
-              fileset,
-              {
-                baseOptions: {
-                  modelAssetPath: FACE_LANDMARKER_MODEL,
-                  delegate: "CPU",
+          for (const modelPath of FACE_LANDMARKER_MODEL_CANDIDATES) {
+            try {
+              const fileset =
+                await vision.FilesetResolver.forVisionTasks(wasmPath);
+              const landmarker = await vision.FaceLandmarker.createFromOptions(
+                fileset,
+                {
+                  baseOptions: {
+                    modelAssetPath: modelPath,
+                    delegate: "CPU",
+                  },
+                  runningMode: "IMAGE",
+                  numFaces: 1,
+                  outputFacialTransformationMatrixes: true,
                 },
-                runningMode: "IMAGE",
-                numFaces: 1,
-                outputFacialTransformationMatrixes: true,
-              },
-            );
-            return landmarker as FaceLandmarkerType;
-          } catch {
-            /* try next wasm path */
+              );
+              return landmarker as FaceLandmarkerType;
+            } catch {
+              /* try next wasm/model pair */
+            }
           }
         }
-        throw new Error("All MediaPipe WASM paths failed");
+        throw new Error("All MediaPipe WASM/model paths failed");
       } catch (error) {
         console.error("Face landmarker failed to load", error);
         landmarkerPromise = null;

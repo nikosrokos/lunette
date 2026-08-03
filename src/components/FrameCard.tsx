@@ -9,6 +9,7 @@ interface FrameCardProps {
   frame: Frame;
   fitScore?: number | null;
   fitReason?: string | null;
+  fitDetail?: string | null;
   showLocal?: boolean;
   countryCode?: string;
 }
@@ -17,6 +18,7 @@ export function FrameCard({
   frame,
   fitScore,
   fitReason,
+  fitDetail,
   showLocal,
   countryCode,
 }: FrameCardProps) {
@@ -43,6 +45,7 @@ export function FrameCard({
           <div className="fit-badge">{fitScore}% match</div>
         ) : null}
         {fitReason ? <p className="fit-reason">{fitReason}</p> : null}
+        {fitDetail ? <p className="fit-detail">{fitDetail}</p> : null}
         {isLocal ? <div className="local-tag">Local</div> : null}
       </Link>
       <div className="frame-item-actions">

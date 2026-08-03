@@ -19,6 +19,8 @@ export default function FitResultsPage() {
           frame,
           score: assessment.score,
           reason: assessment.reason,
+          detail: assessment.detail,
+          parts: assessment.parts,
         };
       })
       .sort((a, b) => b.score - a.score)
@@ -79,9 +81,28 @@ export default function FitResultsPage() {
         {top ? (
           <div className="fit-preview-block">
             <p className="lede">
-              Top match: <strong>{top.frame.name}</strong> · {top.score}% —{" "}
+              Top match: <strong>{top.frame.name}</strong> · {top.score}%
+            </p>
+            <p className="fit-reason" style={{ marginTop: "0.5rem" }}>
               {top.reason}
             </p>
+            <p className="fit-detail" style={{ marginTop: "0.45rem" }}>
+              {top.detail}
+            </p>
+            <ul className="fit-parts">
+              <li>
+                Shape <strong>{Math.round(top.parts.shape * 100)}%</strong>
+              </li>
+              <li>
+                Bridge <strong>{Math.round(top.parts.bridge * 100)}%</strong>
+              </li>
+              <li>
+                Width <strong>{Math.round(top.parts.width * 100)}%</strong>
+              </li>
+              <li>
+                Temples <strong>{Math.round(top.parts.temples * 100)}%</strong>
+              </li>
+            </ul>
             <div className="cta-row" style={{ marginTop: "1rem" }}>
               <Link
                 href={`/frames/${top.frame.id}/try-on`}
@@ -97,12 +118,13 @@ export default function FitResultsPage() {
         ) : null}
 
         <div className="grid-frames" style={{ marginTop: "2.5rem" }}>
-          {ranked.map(({ frame, score, reason }) => (
+          {ranked.map(({ frame, score, reason, detail }) => (
             <FrameCard
               key={frame.id}
               frame={frame}
               fitScore={score}
               fitReason={reason}
+              fitDetail={detail}
               showLocal
               countryCode={countryCode}
             />

@@ -69,6 +69,9 @@ export default function FrameDetailPage() {
               <p className="fit-reason" style={{ marginTop: "0.35rem" }}>
                 {assessment.reason}
               </p>
+              <p className="fit-detail" style={{ marginTop: "0.4rem" }}>
+                {assessment.detail}
+              </p>
             </>
           ) : (
             <div className="notice" style={{ marginTop: "1rem" }}>

@@ -2,7 +2,10 @@ import type { FaceShape, FitProfile, Frame, FrameShape } from "./types";
 
 export interface FitAssessment {
   score: number;
+  /** Short headline for cards */
   reason: string;
+  /** Longer explanation with score breakdown */
+  detail: string;
   parts: {
     shape: number;
     bridge: number;
@@ -80,10 +83,6 @@ function shapeScore(frame: Frame, profile: FitProfile): number {
   return listed ? Math.max(affinity, 0.88) : affinity * 0.62;
 }
 
-function labelWidth(width: FitProfile["faceWidth"]) {
-  return width;
-}
-
 export function assessFrameFit(frame: Frame, profile: FitProfile): FitAssessment {
   const shape = shapeScore(frame, profile);
   const bridge = bridgeScore[profile.bridge](frame.bridge);
@@ -92,10 +91,14 @@ export function assessFrameFit(frame: Frame, profile: FitProfile): FitAssessment
   const raw = shape * 0.38 + bridge * 0.24 + temples * 0.18 + width * 0.2;
   const score = Math.round(Math.min(99, Math.max(42, raw * 100)));
 
+  const parts = { shape, bridge, temples, width };
+  const copy = buildFitCopy(frame, profile, parts, score);
+
   return {
     score,
-    reason: buildFitReason(frame, profile, { shape, bridge, temples, width }),
-    parts: { shape, bridge, temples, width },
+    reason: copy.reason,
+    detail: copy.detail,
+    parts,
   };
 }
 
@@ -107,45 +110,76 @@ export function explainFrameFit(frame: Frame, profile: FitProfile): string {
   return assessFrameFit(frame, profile).reason;
 }
 
-function buildFitReason(
+function pct(part: number) {
+  return Math.round(part * 100);
+}
+
+function scoreBand(score: number): string {
+  if (score >= 90) return "Excellent match";
+  if (score >= 80) return "Strong match";
+  if (score >= 70) return "Good match";
+  if (score >= 60) return "Fair match";
+  return "Loose match";
+}
+
+function partLabel(part: number): string {
+  if (part >= 0.9) return "excellent";
+  if (part >= 0.78) return "strong";
+  if (part >= 0.65) return "good";
+  if (part >= 0.5) return "fair";
+  return "weak";
+}
+
+function buildFitCopy(
   frame: Frame,
   profile: FitProfile,
   parts: FitAssessment["parts"],
-): string {
-  const ranked: Array<["shape" | "bridge" | "width" | "temples", number]> = [
-    ["shape", parts.shape],
-    ["bridge", parts.bridge],
-    ["width", parts.width],
-    ["temples", parts.temples],
-  ];
-  ranked.sort((a, b) => b[1] - a[1]);
-
-  const top = ranked[0][0];
+  score: number,
+): { reason: string; detail: string } {
   const shapeName = formatFaceShape(profile.faceShape).toLowerCase();
   const frameShape = frame.shape.replace("-", " ");
+  const band = scoreBand(score);
 
-  if (top === "shape") {
-    if (parts.shape >= 0.85) {
-      return `${frameShape} frames balance your ${shapeName} face well.`;
-    }
-    return `A softer alternative for your ${shapeName} proportions.`;
-  }
-  if (top === "bridge") {
-    if (parts.bridge >= 0.85) {
-      return `Bridge width matches your ${profile.bridge} bridge closely.`;
-    }
-    return `Bridge is usable, though tuned more for other nose fits.`;
-  }
-  if (top === "width") {
-    if (parts.width >= 0.85) {
-      return `Frame width suits your ${labelWidth(profile.faceWidth)} face width.`;
-    }
-    return `Width is acceptable, but not the closest for your face span.`;
-  }
-  if (parts.temples >= 0.85) {
-    return `Temple length supports your ${profile.temples} side fit.`;
-  }
-  return `Decent overall balance for your ${shapeName} face.`;
+  const shapeLine =
+    parts.shape >= 0.85
+      ? `${frameShape} suits your ${shapeName} face (${pct(parts.shape)}% shape fit).`
+      : `${frameShape} is only a ${partLabel(parts.shape)} shape fit for your ${shapeName} face (${pct(parts.shape)}%).`;
+
+  const bridgeLine =
+    parts.bridge >= 0.85
+      ? `Bridge ${frame.bridge} mm matches your ${profile.bridge} bridge (${pct(parts.bridge)}%).`
+      : `Bridge ${frame.bridge} mm is a ${partLabel(parts.bridge)} fit for your ${profile.bridge} bridge (${pct(parts.bridge)}%).`;
+
+  const widthLine =
+    parts.width >= 0.85
+      ? `Frame width ${frame.frameWidth} mm suits your ${profile.faceWidth} face width (${pct(parts.width)}%).`
+      : `Frame width ${frame.frameWidth} mm is a ${partLabel(parts.width)} fit for your ${profile.faceWidth} face width (${pct(parts.width)}%).`;
+
+  const templeLine =
+    parts.temples >= 0.85
+      ? `Temple ${frame.templeLength} mm supports your ${profile.temples} side fit (${pct(parts.temples)}%).`
+      : `Temple ${frame.templeLength} mm is a ${partLabel(parts.temples)} fit for your ${profile.temples} temples (${pct(parts.temples)}%).`;
+
+  const ranked: Array<{ key: string; value: number; line: string }> = [
+    { key: "shape", value: parts.shape, line: shapeLine },
+    { key: "bridge", value: parts.bridge, line: bridgeLine },
+    { key: "width", value: parts.width, line: widthLine },
+    { key: "temples", value: parts.temples, line: templeLine },
+  ].sort((a, b) => b.value - a.value);
+
+  const weakest = [...ranked].sort((a, b) => a.value - b.value)[0];
+
+  const reason = `${band} (${score}%). ${ranked[0].line}`;
+
+  const detail = [
+    `${band}: ${score}% overall — weighted from shape (38%), bridge (24%), width (20%), and temples (18%).`,
+    ranked.map((r) => r.line).join(" "),
+    weakest.value < 0.78
+      ? `Watch-out: ${weakest.key} is the softest factor (${pct(weakest.value)}%).`
+      : "All four fit factors sit in a comfortable range.",
+  ].join(" ");
+
+  return { reason, detail };
 }
 
 export function formatFaceShape(shape: FaceShape): string {

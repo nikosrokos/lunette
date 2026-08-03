@@ -32,12 +32,14 @@ describe("fit scoring", () => {
     scannedAt: new Date().toISOString(),
   };
 
-  it("scores matching frames highly and explains why", () => {
+  it("scores matching frames highly and explains why with detail", () => {
     const frame = getFrame("maren-aurelia");
     expect(frame).toBeTruthy();
     const assessment = assessFrameFit(frame!, profile);
     expect(assessment.score).toBeGreaterThanOrEqual(75);
-    expect(assessment.reason.length).toBeGreaterThan(12);
+    expect(assessment.reason.length).toBeGreaterThan(20);
+    expect(assessment.detail).toContain("overall");
+    expect(assessment.detail).toMatch(/\d+%/);
     expect(scoreFrameFit(frame!, profile)).toBe(assessment.score);
   });
 
